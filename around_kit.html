@@ -637,6 +637,8 @@ let guessCircles2 = [];
 let guessRadius;
 let guessStreak   = 0;
 let guessBestStreak = 0;
+let guessSlotMachineActive = false;
+let guessSlotMachineStart = 0;
 
 const guessCanvas1 = document.getElementById('guessCanvas1');
 const guessCanvas2 = document.getElementById('guessCanvas2');
@@ -677,6 +679,12 @@ function guessReset() {
   guessCanvas1.style.pointerEvents = 'auto';
   guessCanvas2.style.pointerEvents = 'none';
   guessCanvas2.style.opacity = '0.35';
+  // Re-enable random button
+  const randomBtn = document.querySelector('button[onclick="guessRandomize()"]');
+  if (randomBtn) {
+    randomBtn.style.opacity = '1';
+    randomBtn.style.pointerEvents = 'auto';
+  }
   if (!guessAnimRunning) {
     guessAnimRunning = true;
     requestAnimationFrame(drawGuess);
@@ -694,14 +702,24 @@ function guessRandomize() {
 
 function guessLock() {
   guessPhase = 'guesser';
-  document.getElementById('guessBlur1').style.display    = 'block';
   document.getElementById('guessLockBtn').style.display  = 'none';
-  document.getElementById('guesserBtns').style.display   = 'flex';
+  document.getElementById('guesserBtns').style.display   = 'none'; // hide buttons during slot machine
   document.getElementById('guessLabel1').textContent     = 'Hidden';
   document.getElementById('guessLabel2').textContent     = 'Guesser — match the rhythm you heard';
   guessCanvas1.style.pointerEvents = 'none';
-  guessCanvas2.style.pointerEvents = 'auto';
+  guessCanvas2.style.pointerEvents = 'none'; // disable clicking during slot machine
   guessCanvas2.style.opacity = '1';
+  
+  // Grey out random button
+  const randomBtn = document.querySelector('button[onclick="guessRandomize()"]');
+  if (randomBtn) {
+    randomBtn.style.opacity = '0.4';
+    randomBtn.style.pointerEvents = 'none';
+  }
+  
+  // Start slot machine cycling on row1
+  guessSlotMachineActive = true;
+  guessSlotMachineStart = Date.now();
 }
 
 function guessReveal() {
@@ -828,9 +846,10 @@ function drawGuessSymbol(gctx, c, t, rowCircles) {
 
   const x = c.x, y = c.y;
   
-  // If row1 is locked and we're drawing row1 (but NOT in revealed phase), show a question mark
+  // If row1 is locked (guesser or revealed phase) and we're drawing row1
   const isRow1 = guessCircles1 === rowCircles;
-  if (isRow1 && guessPhase === 'guesser') {
+  if (isRow1 && guessPhase === 'guesser' && !guessSlotMachineActive) {
+    // Show question mark after slot machine is done
     gctx.font = `bold ${r * 0.60}px 'Syne', sans-serif`;
     gctx.fillStyle = col;
     gctx.textAlign = 'center';
@@ -840,7 +859,7 @@ function drawGuessSymbol(gctx, c, t, rowCircles) {
     return;
   }
 
-  // Otherwise draw the normal note symbol
+  // Otherwise draw the normal note symbol (during slot machine, setter phase, or revealed phase)
   const noteY = y + 0.18*r, nr = 0.075*r, sp = r*0.19;
   const stemTop = noteY - r*0.52;
   const beam1Y = stemTop + 1, beam2Y = stemTop + r*0.07;
@@ -885,6 +904,26 @@ function drawGuessSymbol(gctx, c, t, rowCircles) {
 
 function drawGuess() {
   if (!isGuessMode) { guessAnimRunning = false; return; }
+  
+  // Handle slot machine cycling
+  if (guessSlotMachineActive) {
+    const elapsed = Date.now() - guessSlotMachineStart;
+    if (elapsed < 1000) {
+      // Cycle through random states slowly (every ~100ms for smoother feel)
+      if (Math.floor(elapsed / 100) % 2 === 0) {
+        guessCircles1.forEach(c => {
+          c.state = Math.floor(Math.random() * (maxState + 1));
+        });
+      }
+    } else {
+      // Slot machine done, show question marks and enable buttons
+      guessSlotMachineActive = false;
+      document.getElementById('guessBlur1').style.display = 'none';
+      document.getElementById('guesserBtns').style.display = 'flex';
+      guessCanvas2.style.pointerEvents = 'auto';
+    }
+  }
+  
   drawGuessRow(guessCtx1, guessCanvas1, guessCircles1);
   drawGuessRow(guessCtx2, guessCanvas2, guessCircles2);
   requestAnimationFrame(drawGuess);
