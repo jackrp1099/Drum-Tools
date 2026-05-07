@@ -99,6 +99,7 @@ canvas{display:block;position:absolute;top:0;left:0}
     <div class="ctrl-divider"></div>
     <button id="focusBtn"  class="mode-btn" onclick="toggleFocus()">⊙ Focus</button>
     <button id="linearBtn" class="mode-btn" onclick="toggleLinear()">⇔ Linear</button>
+    <button id="guessBtn"  class="mode-btn" onclick="toggleGuess()">? Guess</button>
     <div class="ctrl-divider"></div>
     <div class="ctrl-group">
       <span class="ctrl-label">BPM</span>
@@ -141,6 +142,58 @@ canvas{display:block;position:absolute;top:0;left:0}
 
   <div id="hint"></div>
   <button id="randomizeBtn">⇄ Randomize</button>
+
+  <!-- Guess the Rhythm overlay -->
+  <div id="guessOverlay" style="display:none;position:absolute;inset:0;z-index:200;background:var(--bg);flex-direction:column;align-items:flex-start;justify-content:center;gap:0;padding:24px;">
+
+    <!-- Stats bar (top left) -->
+    <div style="display:flex;gap:32px;margin-bottom:32px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;">
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <span style="color:var(--text3);">Streak</span>
+        <span id="guessStreak" style="font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:var(--amber);">0</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <span style="color:var(--text3);">Best</span>
+        <span id="guessBestStreak" style="font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:var(--text2);">0</span>
+      </div>
+    </div>
+
+    <!-- Centered game area -->
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;pointer-events:none;">
+
+      <!-- Top row: setter -->
+      <div id="guessRow1Wrap" style="position:relative;display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:auto;">
+        <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text3);" id="guessLabel1">Setter</div>
+        <div style="position:relative;">
+          <canvas id="guessCanvas1"></canvas>
+          <!-- blur overlay for locked state -->
+          <div id="guessBlur1" style="display:none;position:absolute;inset:0;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:rgba(14,14,16,0.55);border-radius:4px;"></div>
+        </div>
+        <!-- Lock button shown while setter is editing -->
+        <button id="guessLockBtn" onclick="guessLock()" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--amber);background:transparent;border:1px solid var(--amber-dim);border-radius:4px;padding:7px 22px;cursor:pointer;transition:all 0.15s;">⊠ Lock Rhythm</button>
+      </div>
+
+      <!-- Divider -->
+      <div style="width:60%;height:1px;background:var(--border);margin:18px 0;flex-shrink:0;"></div>
+
+      <!-- Bottom row: guesser -->
+      <div id="guessRow2Wrap" style="position:relative;display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:auto;">
+        <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text3);" id="guessLabel2">Guesser</div>
+        <canvas id="guessCanvas2"></canvas>
+        <!-- buttons shown during guesser phase -->
+        <div id="guesserBtns" style="display:none;gap:10px;align-items:center;">
+          <button onclick="guessPlayHidden()" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--amber);background:transparent;border:1px solid var(--amber-dim);border-radius:4px;padding:7px 22px;cursor:pointer;transition:all 0.15s;">▶ Play Hidden</button>
+          <button onclick="guessReveal()" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text2);background:transparent;border:1px solid var(--border);border-radius:4px;padding:7px 22px;cursor:pointer;transition:all 0.15s;">◎ Reveal</button>
+        </div>
+        <!-- result shown after reveal -->
+        <div id="guessResult" style="display:none;flex-direction:column;align-items:center;gap:10px;">
+          <div id="guessResultText" style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;letter-spacing:0.06em;"></div>
+          <button onclick="guessReset()" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text2);background:transparent;border:1px solid var(--border);border-radius:4px;padding:7px 22px;cursor:pointer;transition:all 0.15s;">↺ Play Again</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
 </div>
 
 <script>
@@ -566,6 +619,258 @@ function stopPlay() {
 // Load samples on first interaction
 window.addEventListener('click', () => { getCtx(); loadSamples(); }, {once:true});
 window.addEventListener('keydown', () => { getCtx(); loadSamples(); }, {once:true});
+
+// ── GUESS THE RHYTHM ──────────────────────────────────────────────────────
+// Phases: 'setter' → setter edits row1, clicks Lock
+//         'guesser' → row1 blurred, guesser edits row2, can Play Hidden or Reveal
+//         'revealed' → blur removed, result shown, Play Again resets
+
+let isGuessMode   = false;
+let guessPhase    = 'setter'; // 'setter' | 'guesser' | 'revealed'
+let guessCircles1 = [];
+let guessCircles2 = [];
+let guessRadius;
+let guessStreak   = 0;
+let guessBestStreak = 0;
+
+const guessCanvas1 = document.getElementById('guessCanvas1');
+const guessCanvas2 = document.getElementById('guessCanvas2');
+const guessCtx1    = guessCanvas1.getContext('2d');
+const guessCtx2    = guessCanvas2.getContext('2d');
+
+function toggleGuess() {
+  isGuessMode = !isGuessMode;
+  document.getElementById('guessBtn').classList.toggle('active', isGuessMode);
+  document.getElementById('guessOverlay').style.display = isGuessMode ? 'flex' : 'none';
+  if (isGuessMode) {
+    guessStreak = 0;
+    updateGuessHUD();
+    guessReset();
+  }
+}
+
+function updateGuessHUD() {
+  document.getElementById('guessStreak').textContent = guessStreak;
+  // Update best streak if current streak exceeds it
+  if (guessStreak > guessBestStreak) {
+    guessBestStreak = guessStreak;
+    document.getElementById('guessBestStreak').textContent = guessBestStreak;
+  }
+}
+
+function guessReset() {
+  guessPhase = 'setter';
+  setupGuessCanvases();
+  // UI state
+  document.getElementById('guessBlur1').style.display    = 'none';
+  document.getElementById('guessLockBtn').style.display  = 'inline-block';
+  document.getElementById('guesserBtns').style.display   = 'none';
+  document.getElementById('guessResult').style.display   = 'none';
+  document.getElementById('guessLabel1').textContent     = 'Setter — set your rhythm, then lock it';
+  document.getElementById('guessLabel2').textContent     = 'Guesser';
+  // Re-enable row1 clicks, disable row2
+  guessCanvas1.style.pointerEvents = 'auto';
+  guessCanvas2.style.pointerEvents = 'none';
+  guessCanvas2.style.opacity = '0.35';
+  if (!guessAnimRunning) {
+    guessAnimRunning = true;
+    requestAnimationFrame(drawGuess);
+  }
+}
+
+function guessLock() {
+  guessPhase = 'guesser';
+  document.getElementById('guessBlur1').style.display    = 'block';
+  document.getElementById('guessLockBtn').style.display  = 'none';
+  document.getElementById('guesserBtns').style.display   = 'flex';
+  document.getElementById('guessLabel1').textContent     = 'Hidden';
+  document.getElementById('guessLabel2').textContent     = 'Guesser — match the rhythm you heard';
+  guessCanvas1.style.pointerEvents = 'none';
+  guessCanvas2.style.pointerEvents = 'auto';
+  guessCanvas2.style.opacity = '1';
+}
+
+function guessReveal() {
+  guessPhase = 'revealed';
+  document.getElementById('guessBlur1').style.display  = 'none';
+  document.getElementById('guesserBtns').style.display = 'none';
+  document.getElementById('guessResult').style.display = 'flex';
+  document.getElementById('guessLabel1').textContent   = 'Setter';
+  document.getElementById('guessLabel2').textContent   = 'Guesser';
+
+  // Compare
+  const match = guessCircles1.every((c, i) => c.state === guessCircles2[i].state);
+  const hits = guessCircles1.filter((c,i) => c.state === guessCircles2[i].state).length;
+  
+  const txt = document.getElementById('guessResultText');
+  if (match) {
+    txt.textContent = '✓ Perfect Match';
+    txt.style.color = '#45C878';
+    guessStreak += 1;
+  } else {
+    txt.textContent = `${hits} / 4 beats correct`;
+    txt.style.color = hits >= 2 ? '#E8A045' : '#E85045';
+    guessStreak = 0;
+  }
+  updateGuessHUD();
+}
+
+function guessPlayHidden() {
+  // Play the setter's (row1) rhythm once using snare only
+  getCtx(); loadSamples();
+  const ac = getCtx();
+  if (ac.state === 'suspended') ac.resume();
+  let when = ac.currentTime + 0.08;
+  const dur = slotDur();
+  for (let beat = 0; beat < 4; beat++) {
+    const pattern = BEAT_SLOTS[guessCircles1[beat].state] || [0];
+    pattern.forEach(sub => playSample('snare', when + (beat*4 + sub) * dur));
+  }
+}
+
+// ── GUESS CANVAS SETUP ────────────────────────────────────────────────────
+function setupGuessCanvases() {
+  const wrap = document.getElementById('canvas-wrap');
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+
+  // Reserve ~42% of height per row, the rest is labels + divider + buttons
+  const rowH = Math.floor(H * 0.38);
+  // 25% bigger: 0.315 * 1.25 = 0.394
+  guessRadius = Math.min(W, rowH) * 0.394;
+
+  const spacing = W / 5;
+  const y = rowH * 0.5;
+
+  [guessCanvas1, guessCanvas2].forEach(cv => {
+    cv.width  = W; cv.height = rowH;
+    cv.style.width  = W + 'px';
+    cv.style.height = rowH + 'px';
+    cv.style.position = 'relative';
+    cv.style.display  = 'block';
+  });
+
+  const makeRow = () => [1,2,3,4].map(i => ({ x: spacing * i, y, state: 0 }));
+
+  if (guessCircles1.length === 4) {
+    guessCircles1.forEach((c,i) => { c.x = spacing*(i+1); c.y = y; });
+    guessCircles2.forEach((c,i) => { c.x = spacing*(i+1); c.y = y; });
+  } else {
+    guessCircles1 = makeRow();
+    guessCircles2 = makeRow();
+  }
+}
+
+// ── GUESS DRAW ────────────────────────────────────────────────────────────
+let guessAnimRunning = false;
+
+function drawGuessRow(gctx, gcv, rowCircles) {
+  gctx.clearRect(0, 0, gcv.width, gcv.height);
+  const t = Date.now() * 0.002;
+  rowCircles.forEach(c => {
+    drawGuessCircle(gctx, c);
+    drawGuessSymbol(gctx, c, t, rowCircles);
+  });
+}
+
+function drawGuessCircle(gctx, c) {
+  const r = guessRadius;
+  gctx.save();
+  const pg = gctx.createRadialGradient(c.x - r*0.2, c.y - r*0.2, r*0.05, c.x, c.y, r);
+  pg.addColorStop(0, '#1C1C20');
+  pg.addColorStop(1, '#0E0E10');
+  gctx.beginPath(); gctx.arc(c.x, c.y, r, 0, Math.PI*2);
+  gctx.fillStyle = pg; gctx.fill();
+
+  // reveal-phase colour ring for row1
+  let ringCol = 'rgba(180,170,160,0.30)';
+  if (guessPhase === 'revealed') {
+    const isRow1 = guessCircles1.includes(c);
+    if (isRow1) {
+      const i = guessCircles1.indexOf(c);
+      ringCol = guessCircles1[i].state === guessCircles2[i].state
+        ? 'rgba(69,200,120,0.75)' : 'rgba(232,80,69,0.75)';
+    } else {
+      const i = guessCircles2.indexOf(c);
+      ringCol = guessCircles1[i].state === guessCircles2[i].state
+        ? 'rgba(69,200,120,0.75)' : 'rgba(232,80,69,0.75)';
+    }
+  }
+  gctx.beginPath(); gctx.arc(c.x, c.y, r, 0, Math.PI*2);
+  gctx.strokeStyle = ringCol; gctx.lineWidth = 1.8; gctx.stroke();
+  gctx.beginPath(); gctx.arc(c.x, c.y, r-3, Math.PI*1.1, Math.PI*1.75);
+  gctx.strokeStyle = 'rgba(255,255,255,0.06)'; gctx.lineWidth = 2; gctx.stroke();
+  gctx.restore();
+}
+
+function drawGuessSymbol(gctx, c, t, rowCircles) {
+  const r   = guessRadius;
+  const col = getColor(t, c.x * 0.01);
+  gctx.save();
+  gctx.strokeStyle = col; gctx.fillStyle = col; gctx.lineWidth = 2;
+
+  const x = c.x, y = c.y;
+  const noteY = y + 0.18*r, nr = 0.075*r, sp = r*0.19;
+  const stemTop = noteY - r*0.52;
+  const beam1Y = stemTop + 1, beam2Y = stemTop + r*0.07;
+  const sx = nx => nx + nr*0.75;
+
+  const nh = (nx, ny, fnr) => {
+    gctx.save(); gctx.beginPath();
+    gctx.ellipse(nx, ny, fnr*1.15, fnr*0.85, -0.35, 0, Math.PI*2); gctx.fill();
+    gctx.restore();
+  };
+  const st = (nx, ny, fnr) => {
+    const sw = Math.max(1.5, fnr*0.30); gctx.lineWidth = sw; gctx.lineCap = 'round';
+    gctx.beginPath(); gctx.moveTo(nx, ny - fnr*0.6); gctx.lineTo(nx, ny - r*0.52); gctx.stroke(); gctx.lineCap = 'butt';
+  };
+  const bm = (x1, x2, by, th=4) => {
+    gctx.lineWidth = th; gctx.lineCap = 'round';
+    gctx.beginPath(); gctx.moveTo(x1, by); gctx.lineTo(x2, by); gctx.stroke();
+    gctx.lineWidth = 2; gctx.lineCap = 'butt';
+  };
+
+  if (c.state===0) { nh(x,noteY,nr*1.4); st(sx(x),noteY,nr*1.4); }
+  else if (c.state===1) {
+    const xs=[x-sp,x+sp]; xs.forEach(nx=>{nh(nx,noteY,nr);st(sx(nx),noteY,nr);}); bm(sx(xs[0]),sx(xs[1]),beam1Y);
+  } else if (c.state===2) {
+    const xs=[-1.5,-0.5,0.5,1.5].map(i=>x+i*sp); xs.forEach(nx=>{nh(nx,noteY,nr);st(sx(nx),noteY,nr);}); bm(sx(xs[0]),sx(xs[3]),beam1Y); bm(sx(xs[0]),sx(xs[3]),beam2Y);
+  } else if (c.state===3) {
+    const xs=[-1.5,-0.5,0.5].map(i=>x+i*sp); xs.forEach(nx=>{nh(nx,noteY,nr);st(sx(nx),noteY,nr);}); bm(sx(xs[0]),sx(xs[2]),beam1Y); bm(sx(xs[0]),sx(xs[1]),beam2Y);
+  } else if (c.state===4) {
+    const xs=[-1.5,0.5,1.5].map(i=>x+i*sp); xs.forEach(nx=>{nh(nx,noteY,nr);st(sx(nx),noteY,nr);}); bm(sx(xs[0]),sx(xs[2]),beam1Y); bm(sx(xs[1]),sx(xs[2]),beam2Y);
+  }
+
+  // Beat label
+  const beatNum = rowCircles.indexOf(c) + 1;
+  const subLabels = ['', ' +', ' e + a', ' e +  ', '   + a'];
+  const label = String(beatNum) + subLabels[c.state];
+  gctx.font = `${r * 0.10}px 'DM Mono', monospace`;
+  gctx.fillStyle = 'rgba(255,255,255,1)';
+  gctx.textAlign = 'center';
+  gctx.fillText(label, x, y + r + r*0.20);
+  gctx.restore();
+}
+
+function drawGuess() {
+  if (!isGuessMode) { guessAnimRunning = false; return; }
+  drawGuessRow(guessCtx1, guessCanvas1, guessCircles1);
+  drawGuessRow(guessCtx2, guessCanvas2, guessCircles2);
+  requestAnimationFrame(drawGuess);
+}
+
+// ── GUESS CLICK HANDLERS ──────────────────────────────────────────────────
+function guessCanvasClick(e, gcv, rowCircles) {
+  if (!isGuessMode) return;
+  const rect = gcv.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  rowCircles.forEach(c => {
+    if (Math.hypot(mx - c.x, my - c.y) < guessRadius) {
+      c.state = nextState(c.state);
+    }
+  });
+}
+guessCanvas1.addEventListener('click', e => guessCanvasClick(e, guessCanvas1, guessCircles1));
+guessCanvas2.addEventListener('click', e => guessCanvasClick(e, guessCanvas2, guessCircles2));
 </script>
 </body>
 </html>
