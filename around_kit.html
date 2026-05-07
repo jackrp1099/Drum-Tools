@@ -166,11 +166,16 @@ canvas{display:block;position:absolute;top:0;left:0}
         <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text3);" id="guessLabel1">Setter</div>
         <div style="position:relative;">
           <canvas id="guessCanvas1"></canvas>
-          <!-- blur overlay for locked state -->
-          <div id="guessBlur1" style="display:none;position:absolute;inset:0;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:rgba(14,14,16,0.55);border-radius:4px;"></div>
+          <!-- question mark overlay for locked state -->
+          <div id="guessBlur1" style="display:none;position:absolute;inset:0;background:rgba(14,14,16,0.85);border-radius:4px;display:flex;align-items:center;justify-content:center;">
+            <span style="font-family:'Syne',sans-serif;font-size:120px;font-weight:800;color:rgba(255,255,255,0.15);line-height:1;">?</span>
+          </div>
         </div>
         <!-- Lock button shown while setter is editing -->
-        <button id="guessLockBtn" onclick="guessLock()" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--amber);background:transparent;border:1px solid var(--amber-dim);border-radius:4px;padding:7px 22px;cursor:pointer;transition:all 0.15s;">⊠ Lock Rhythm</button>
+        <div style="display:flex;gap:8px;">
+          <button id="guessLockBtn" onclick="guessLock()" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--amber);background:transparent;border:1px solid var(--amber-dim);border-radius:4px;padding:7px 22px;cursor:pointer;transition:all 0.15s;">⊠ Lock Rhythm</button>
+          <button onclick="guessRandomize()" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text2);background:transparent;border:1px solid var(--border);border-radius:4px;padding:7px 22px;cursor:pointer;transition:all 0.15s;">⇄ Random</button>
+        </div>
       </div>
 
       <!-- Divider -->
@@ -678,6 +683,15 @@ function guessReset() {
   }
 }
 
+function guessRandomize() {
+  // Set all circles in row 1 to random states based on current difficulty (maxState)
+  guessCircles1.forEach(c => {
+    c.state = Math.floor(Math.random() * (maxState + 1));
+  });
+  // Immediately lock the rhythm
+  guessLock();
+}
+
 function guessLock() {
   guessPhase = 'guesser';
   document.getElementById('guessBlur1').style.display    = 'block';
@@ -697,6 +711,10 @@ function guessReveal() {
   document.getElementById('guessResult').style.display = 'flex';
   document.getElementById('guessLabel1').textContent   = 'Setter';
   document.getElementById('guessLabel2').textContent   = 'Guesser';
+  
+  // Re-enable clicking on both rows in revealed state
+  guessCanvas1.style.pointerEvents = 'auto';
+  guessCanvas2.style.pointerEvents = 'auto';
 
   // Compare
   const match = guessCircles1.every((c, i) => c.state === guessCircles2[i].state);
@@ -809,6 +827,20 @@ function drawGuessSymbol(gctx, c, t, rowCircles) {
   gctx.strokeStyle = col; gctx.fillStyle = col; gctx.lineWidth = 2;
 
   const x = c.x, y = c.y;
+  
+  // If row1 is locked and we're drawing row1 (but NOT in revealed phase), show a question mark
+  const isRow1 = guessCircles1 === rowCircles;
+  if (isRow1 && guessPhase === 'guesser') {
+    gctx.font = `bold ${r * 0.60}px 'Syne', sans-serif`;
+    gctx.fillStyle = col;
+    gctx.textAlign = 'center';
+    gctx.textBaseline = 'middle';
+    gctx.fillText('?', x, y);
+    gctx.restore();
+    return;
+  }
+
+  // Otherwise draw the normal note symbol
   const noteY = y + 0.18*r, nr = 0.075*r, sp = r*0.19;
   const stemTop = noteY - r*0.52;
   const beam1Y = stemTop + 1, beam2Y = stemTop + r*0.07;
