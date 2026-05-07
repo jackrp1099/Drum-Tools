@@ -1477,6 +1477,34 @@ table.edit-grid td.ecell:hover .nd.xhead { transform: rotate(45deg) scale(1.15);
 }
 
 .print-sheet { display: none; }
+
+/* ── ARRANGEMENT TITLE DISPLAY ── */
+#arrangementTitleDisplay {
+  display: none;
+  text-align: center;
+  font-family: var(--serif);
+  font-size: 32px;
+  font-style: italic;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+  padding: 18px 10% 8px;
+  line-height: 1.2;
+}
+#arrangementTitleDisplay.has-title {
+  display: block;
+}
+
+@media print {
+  #arrangementTitleDisplay {
+    display: block !important;
+    padding: 0 0 14px 0 !important;
+    font-size: 28px !important;
+    color: black !important;
+  }
+  #arrangementTitleDisplay:not(.has-title) {
+    display: none !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -1598,6 +1626,7 @@ table.edit-grid td.ecell:hover .nd.xhead { transform: rotate(45deg) scale(1.15);
 
 <div class="main">
   <div class="arrangement-label">Arrangement — click a measure to edit</div>
+  <div id="arrangementTitleDisplay"></div>
   <div class="score-strip" id="scoreStrip">
     <div id="scoreRows">
       <!-- rows of 4 measures rendered here by JS -->
@@ -3755,6 +3784,7 @@ function loadArrangement(idx) {
   if (entry.bpm) setGlobalBpm(entry.bpm);
   if (entry.measuresPerRow) { MEASURES_PER_ROW = entry.measuresPerRow; document.getElementById('lineBreakSelect').value = String(entry.measuresPerRow); }
   if (entry.title !== undefined) document.getElementById('arrangementTitle').value = entry.title;
+  updateTitleDisplay();
   renderScore();
 }
 function deleteArrangement(idx) { const s = getSaved(); s.splice(idx, 1); putSaved(s); renderLoadPanel(); }
@@ -5048,6 +5078,20 @@ window.addEventListener('beforeprint', () => {
 
 window.addEventListener('afterprint', () => {
   renderScore();
+});
+
+// ── TITLE DISPLAY ─────────────────────────────────────────────────────────
+function updateTitleDisplay() {
+  const val = (document.getElementById('arrangementTitle')?.value || '').trim();
+  const el = document.getElementById('arrangementTitleDisplay');
+  if (!el) return;
+  el.textContent = val;
+  el.classList.toggle('has-title', val.length > 0);
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('arrangementTitle');
+  if (input) input.addEventListener('input', updateTitleDisplay);
+  updateTitleDisplay();
 });
 // ── FOCUS MODE PLAYBACK ───────────────────────────────────────────────────
 let focusPlaying    = false;
