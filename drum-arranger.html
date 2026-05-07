@@ -1,0 +1,5118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drum Arranger</title>
+
+<script src="abcjs.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --paper: #F5EFE4;
+  --paper2: #EDE5D6;
+  --paper3: #E3D9C6;
+  --ink: #1C1814;
+  --ink2: #4A4440;
+  --ink3: #8A8480;
+  --red: #B83030;
+  --blue: #1A4A7A;
+  --staff: #2A2420;
+  --border: #CCC5B5;
+  --mono: 'Courier New', Courier, monospace;
+  --serif: Georgia, 'Times New Roman', serif;
+  --measure-w: 260px;
+  --staff-line-gap: 10px;
+  --staff-height: 60px;
+}
+
+body {
+  background: var(--paper2);
+  color: var(--ink);
+  font-family: var(--mono);
+  min-height: 100vh;
+}
+
+/* ── HEADER ── */
+header {
+  background: var(--ink);
+  padding: 12px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--red);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.logo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.logo-title {
+  font-family: var(--serif);
+  font-size: 18px;
+  color: var(--paper);
+  letter-spacing: 0.02em;
+}
+.logo-sub {
+  font-size: 9px;
+  color: #666;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.hbtn {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  border-radius: 3px;
+  border: 1px solid #444;
+  background: transparent;
+  color: #CCC;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.hbtn:hover { background: #2A2420; border-color: #888; color: var(--paper); }
+.hbtn.primary { background: var(--red); border-color: var(--red); color: white; }
+.hbtn.primary:hover { background: #CC3535; }
+
+/* ── MAIN LAYOUT ── */
+.main { padding: 24px 0 60px; }
+
+.arrangement-label {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 10px;
+  padding: 0 10%;
+}
+
+/* ── SCORE STRIP ── */
+.score-strip {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px 16px 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  overflow: visible;
+  position: relative;
+  margin: 0 10%;
+}
+
+.score-inner {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 0;
+  flex-wrap: wrap;
+}
+
+/* Row of up to 4 measures + the + button */
+.score-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+  position: relative;
+}
+.score-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* Row-level ⋯ menu button — shown on row hover */
+.row-menu-btn {
+  flex-shrink: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--ink2);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 3px 7px;
+  z-index: 10;
+  line-height: 1.4;
+  margin-left: 4px;
+  align-self: center;
+}
+.score-row:hover .row-menu-btn {
+  opacity: 1;
+  pointer-events: all;
+}
+.row-menu-btn:hover {
+  background: var(--paper3);
+  color: var(--ink);
+}
+
+/* Row dropdown menu */
+.row-menu {
+  position: fixed;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  z-index: 300;
+  min-width: 170px;
+  display: none;
+  flex-direction: column;
+  padding: 4px 0;
+}
+.row-menu.open { display: flex; }
+.row-menu button {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.row-menu button:hover { background: var(--paper2); }
+.row-menu button.danger { color: var(--red); }
+
+/* add measure button */
+.add-measure-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px; height: 32px;
+  cursor: pointer;
+  background: transparent;
+  border: 2px dashed var(--border);
+  border-radius: 3px;
+  color: var(--ink3);
+  font-size: 20px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-weight: 300;
+  margin-left: 6px;
+  align-self: center;
+}
+.add-measure-btn:hover {
+  border-color: var(--red);
+  color: var(--red);
+  background: #F5EAE0;
+}
+
+/* Flash highlight after delete to show the newly focused measure */
+.m-overlay.focused-after-delete {
+  background: rgba(180,60,40,0.13);
+  border: 1.5px solid var(--red);
+  border-radius: 2px;
+}
+/* Persistent focus highlight — stays until mouse moves to another measure */
+.m-overlay.focused {
+  outline: 2px solid rgba(180,60,40,0.5);
+  outline-offset: -2px;
+  border-radius: 2px;
+}
+.score-render-row {
+  position: relative;
+  width: 100%;
+  min-height: 60px;
+  flex: 1;
+  overflow: visible;
+}
+
+#score-render-wrap {
+  position: relative;
+  width: 100%;
+  min-height: 60px;
+}
+
+.m-overlay {
+  position: absolute;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 0.12s, border-color 0.12s;
+  border: 2px solid transparent;
+}
+.m-overlay:hover {
+  background: rgba(184,48,48,0.10);
+  border-color: rgba(184,48,48,0.35);
+}
+.m-overlay.selected {
+  background: rgba(184,48,48,0.15);
+  border-color: var(--red);
+}
+
+.measure-menu-btn {
+  position: absolute;
+  top: 3px; right: 3px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  color: var(--ink2);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 1px 5px;
+  line-height: 1.4;
+  opacity: 0;
+  transition: opacity 0.12s;
+  z-index: 10;
+  border-radius: 3px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+}
+.m-overlay:hover .measure-menu-btn { opacity: 1; }
+.measure-menu-btn:hover { background: var(--paper2); }
+
+.measure-num-label {
+  position: absolute;
+  bottom: 3px; left: 4px;
+  font-size: 8px;
+  color: var(--ink3);
+  pointer-events: none;
+  letter-spacing: 0.05em;
+}
+
+.measure-menu {
+  position: fixed;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  z-index: 500;
+  min-width: 175px;
+  padding: 4px 0;
+  display: none;
+}
+.measure-menu.open { display: block; }
+.measure-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 7px 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.measure-menu button:hover { background: var(--paper2); color: var(--ink); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  display: none;
+  justify-content: center;
+  padding: 0;
+  pointer-events: none;
+}
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: var(--paper);
+  border-radius: 6px 6px 0 0;
+  width: fit-content;
+  min-width: 480px;
+  max-width: 96vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  overflow-x: auto;
+  box-shadow: 0 -4px 32px rgba(0,0,0,0.22);
+  display: flex;
+  flex-direction: column;
+  pointer-events: all;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  align-self: flex-end;
+  flex-shrink: 0;
+  flex-grow: 0;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--ink);
+  border-radius: 6px 6px 0 0;
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.modal-title {
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--paper);
+  font-style: italic;
+}
+
+.modal-close {
+  background: none;
+  border: 1px solid #555;
+  color: #AAA;
+  font-size: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  transition: all 0.1s;
+}
+.modal-close:hover { border-color: var(--red); color: var(--red); }
+
+.modal-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: var(--paper2);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.mtool-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 12px;
+  border-right: 1px solid var(--border);
+}
+.mtool-group:last-child { border-right: none; padding-right: 0; }
+
+.modal-toolbar label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+
+.mbtn {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 5px 12px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--paper);
+  color: var(--ink2);
+  cursor: pointer;
+  transition: all 0.1s;
+  white-space: nowrap;
+}
+.mbtn:hover { background: var(--paper3); }
+.mbtn.active { background: var(--red); border-color: var(--red); color: white; }
+.mbtn.play-btn { background: var(--blue); border-color: var(--blue); color: white; }
+.mbtn.play-btn:hover { background: #1E5A90; }
+.mbtn.play-btn.active { background: #555; border-color: #555; }
+
+.mbtn.tom-toggle {
+  background: var(--paper);
+  border-color: var(--border);
+  color: var(--ink3);
+}
+.mbtn.tom-toggle.active {
+  background: #EAF0F8;
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+select.mselect {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink);
+  outline: none;
+  cursor: pointer;
+}
+select.mselect:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--paper3);
+}
+
+.bpm-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+input[type=range].bpm-slider {
+  -webkit-appearance: none;
+  width: 130px;
+  height: 5px;
+  background: var(--border);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+input[type=range].bpm-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px; height: 20px;
+  background: var(--red);
+  border-radius: 50%;
+}
+input[type=range].bpm-slider::-moz-range-thumb {
+  width: 20px; height: 20px;
+  background: var(--red);
+  border-radius: 50%;
+  border: none;
+}
+.bpm-num {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--red);
+  min-width: 34px;
+}
+
+/* ── GRID ── */
+.modal-body { padding: 16px 20px 20px; overflow-x: auto; flex-shrink: 0; overflow-y: visible; }
+
+table.edit-grid {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: max-content;
+}
+
+table.edit-grid th {
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--ink3);
+  text-align: center;
+  padding: 5px 2px 4px;
+  min-width: 36px;
+  background: var(--paper2);
+  border-bottom: 1px solid var(--border);
+}
+table.edit-grid th.beat-th {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ink2);
+}
+table.edit-grid th.mbar { border-left: 2px solid var(--ink3); }
+
+table.edit-grid td.row-label {
+  font-size: 10px;
+  color: var(--ink2);
+  padding: 0 6px 0 6px;
+  white-space: nowrap;
+  background: var(--paper2);
+  border-right: 2px solid var(--border);
+  border-bottom: 1px solid var(--paper3);
+  min-width: 60px;
+  height: 46px;
+  vertical-align: middle;
+  font-style: italic;
+  cursor: context-menu;
+  user-select: none;
+}
+table.edit-grid td.row-label:hover {
+  background: var(--paper3);
+  color: var(--ink);
+}
+
+table.edit-grid td.ecell {
+  width: 36px;
+  height: 46px;
+  text-align: center;
+  vertical-align: middle;
+  border-bottom: 1px solid #EEE;
+  cursor: pointer;
+  position: relative;
+}
+table.edit-grid td.ecell.beat-div { border-left: 1px solid #DDD; }
+table.edit-grid td.ecell.bar-div  { border-left: 2px solid var(--ink3); }
+table.edit-grid td.ecell:hover .nd { transform: scale(1.15); }
+table.edit-grid td.ecell:hover .nd.xhead { transform: rotate(45deg) scale(1.15); }
+
+.nd {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+  margin: 0 auto;
+  transition: transform 0.08s, background 0.08s;
+}
+.nd.xhead {
+  border-radius: 0;
+  transform: rotate(45deg);
+  width: 14px; height: 14px;
+}
+.nd.on        { background: var(--blue); border-color: #0F3A6A; }
+.nd.on.xhead  { background: var(--blue); border-color: #0F3A6A; }
+.nd.on.crash  { background: #C94A00; border-color: #7A2800; }
+.nd.on.crash.xhead { background: #C94A00; border-color: #7A2800; }
+.nd.on.ride   { background: #1A7A50; border-color: #0A4A2E; }
+.nd.on.ride.xhead  { background: #1A7A50; border-color: #0A4A2E; }
+.nd.acc       { background: var(--red);  border-color: #7A1010; }
+.nd.acc.xhead { background: var(--red);  border-color: #7A1010; }
+.nd.ghost     { background: #C8D8C0; border-color: #3A6A30; }
+.nd.lit       { outline: 2px solid var(--red); outline-offset: 2px; }
+
+/* Cymbal context menu */
+.cymbal-menu {
+  position: fixed;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  z-index: 500;
+  min-width: 160px;
+  display: none;
+  flex-direction: column;
+  padding: 4px 0;
+}
+.cymbal-menu.open { display: flex; }
+.cymbal-menu button {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cymbal-menu button:hover { background: var(--paper2); }
+.cymbal-swatch {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transform: rotate(45deg);
+  display: inline-block;
+}
+.cymbal-swatch.hh     { background: var(--blue);  }
+.cymbal-swatch.crash  { background: #C94A00; }
+.cymbal-swatch.ride   { background: #1A7A50; }
+
+/* ── LEGEND ── */
+.modal-legend {
+  display: flex;
+  gap: 14px;
+  padding: 8px 20px 14px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.leg-item {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; color: var(--ink2);
+}
+.leg-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 1.5px solid; flex-shrink: 0;
+}
+
+/* ── HEADER PLAY ── */
+.header-play-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #1A1A1A;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #DDD;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+.header-play-btn:hover { background: #2A2A2A; border-color: #666; }
+.header-play-btn.active { background: var(--red); border-color: #AA2020; color: #FFF; }
+
+.header-bpm {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 10px; color: #888; font-family: var(--mono);
+  letter-spacing: 0.05em;
+}
+.header-bpm input[type=number] {
+  width: 44px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #555;
+  color: #DDD;
+  font-family: var(--mono);
+  font-size: 13px;
+  text-align: center;
+  outline: none;
+  padding: 1px 2px;
+}
+.header-bpm input[type=number]::-webkit-inner-spin-button { opacity: 0; }
+
+/* Currently-playing measure highlight */
+.m-overlay.playing-measure {
+  background: rgba(40, 160, 80, 0.13);
+  border: 2px solid #28A050;
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(40,160,80,0.25);
+}
+/* ── FOCUS MODE ── */
+#focusOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  background: var(--paper);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 80px 40px;
+}
+#focusOverlay.open { display: flex; }
+
+#focusExitBtn {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  z-index: 160;
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  border-radius: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 8px 18px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+#focusExitBtn:hover { background: var(--red); color: white; }
+
+#focusMeasureLabel {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  position: fixed;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+#focusRenderWrap {
+  position: relative;
+  width: 100vw;
+}
+
+#focusPrevBtn, #focusNextBtn {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--ink2);
+  font-size: 22px;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: all 0.15s;
+  z-index: 160;
+  line-height: 1;
+}
+#focusPrevBtn { left: 16px; }
+#focusNextBtn { right: 16px; }
+#focusPrevBtn:hover, #focusNextBtn:hover {
+  background: var(--paper3);
+  color: var(--ink);
+  border-color: var(--ink3);
+}
+#focusPrevBtn:disabled, #focusNextBtn:disabled {
+  opacity: 0.2;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ── FOCUS CONTROLS BAR ── */
+#focusControls {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 162;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  background: var(--ink);
+  border-radius: 8px;
+  padding: 8px 16px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.35);
+}
+#focusControls.visible { display: flex; }
+#focusPlayBtn.active { background: #555 !important; border-color: #444 !important; }
+
+/* ── FOCUS ANNOTATION TOOLBAR ── */
+#annotationToolbar {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 165;
+  display: none;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  background: var(--ink);
+  border-radius: 8px;
+  padding: 6px 10px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.35);
+}
+#annotationToolbar.visible { display: flex; }
+
+.ann-btn {
+  width: 36px; height: 36px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: rgba(255,255,255,0.55);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  transition: background 0.12s, color 0.12s;
+  position: relative;
+}
+.ann-btn:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.9); }
+.ann-btn.active { background: rgba(255,255,255,0.18); color: white; }
+.ann-btn svg { pointer-events: none; }
+
+.ann-divider {
+  width: 1px; height: 22px;
+  background: rgba(255,255,255,0.12);
+  margin: 0 4px;
+}
+
+.ann-color-swatch {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.3);
+  cursor: pointer;
+  transition: border-color 0.12s, transform 0.12s;
+}
+.ann-color-swatch:hover { border-color: white; transform: scale(1.15); }
+.ann-color-swatch.active { border-color: white; transform: scale(1.1); }
+
+/* The drawing canvas sits over the focusOverlay content */
+#annotationCanvas {
+  position: fixed;
+  inset: 0;
+  z-index: 155;
+  pointer-events: none;
+  display: none;
+}
+#annotationCanvas.freehand-mode { pointer-events: all; cursor: crosshair; }
+#annotationCanvas.drawing-mode { pointer-events: all; cursor: crosshair; }
+#annotationCanvas.arrow-mode   { pointer-events: all; cursor: crosshair; }
+#annotationCanvas.line-mode    { pointer-events: all; cursor: crosshair; }
+#annotationCanvas.box-mode     { pointer-events: all; cursor: crosshair; }
+
+/* ── SAVE / LOAD ── */
+.hbtn.save-btn { background: transparent; border-color: #4A7; color: #4A7; }
+.hbtn.save-btn:hover { background: #1A3A2A; border-color: #6CF; color: #6CF; }
+#loadPanel {
+  position: fixed; top: 48px; right: 0; z-index: 400;
+  background: var(--paper); border: 1px solid var(--border);
+  border-radius: 0 0 6px 6px; box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+  min-width: 260px; max-width: 340px; display: none; flex-direction: column; overflow: hidden;
+}
+#loadPanel.open { display: flex; }
+#loadPanel-header { padding: 10px 14px 8px; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink3); border-bottom: 1px solid var(--border); background: var(--paper2); flex-shrink: 0; }
+#loadPanel-list { overflow-y: auto; max-height: 320px; flex: 1; }
+.load-item { display: flex; align-items: center; padding: 0 6px 0 14px; border-bottom: 1px solid var(--paper3); gap: 6px; min-height: 42px; }
+.load-item:last-child { border-bottom: none; }
+.load-item-name { flex: 1; font-size: 13px; font-family: var(--serif); font-style: italic; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; padding: 10px 0; }
+.load-item-name:hover { color: var(--red); }
+.load-item-date { font-size: 9px; color: var(--ink3); white-space: nowrap; flex-shrink: 0; }
+.load-item-del { flex-shrink: 0; background: none; border: none; color: var(--ink3); cursor: pointer; font-size: 13px; padding: 4px 6px; border-radius: 3px; line-height: 1; transition: color 0.1s, background 0.1s; }
+.load-item-del:hover { color: var(--red); background: #FFF0F0; }
+#loadPanel-empty { padding: 24px 14px; font-size: 11px; color: var(--ink3); text-align: center; font-family: var(--mono); }
+#saveDialog { position: fixed; inset: 0; z-index: 500; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; }
+#saveDialog.open { display: flex; }
+#saveDialogBox { background: var(--paper); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 8px 40px rgba(0,0,0,0.28); padding: 28px 32px 24px; min-width: 340px; display: flex; flex-direction: column; gap: 16px; }
+#saveDialogBox h3 { font-family: var(--serif); font-size: 17px; font-weight: normal; font-style: italic; color: var(--ink); margin: 0; }
+#saveNameInput { font-family: var(--serif); font-style: italic; font-size: 15px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; background: var(--paper2); color: var(--ink); outline: none; width: 100%; }
+#saveNameInput:focus { border-color: var(--red); }
+#saveDialogActions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ── MINIGAMES ── */
+#minigameOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  background: var(--paper);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+#minigameOverlay.open { display: flex; }
+
+#mgExitBtn {
+  position: fixed;
+  top: 16px; right: 20px;
+  z-index: 260;
+  background: var(--ink); color: var(--paper);
+  border: none; border-radius: 4px;
+  font-family: var(--mono); font-size: 11px;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 8px 18px; cursor: pointer; transition: background 0.15s;
+}
+#mgExitBtn:hover { background: var(--red); }
+
+#mgTitle {
+  position: fixed; top: 22px; left: 50%; transform: translateX(-50%);
+  font-family: var(--mono); font-size: 10px;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--ink3); pointer-events: none; white-space: nowrap;
+}
+
+#mgScoreRender {
+  width: 100%;
+  max-width: 1400px;
+  position: relative;
+}
+
+/* Add a Kick — stripped sequencer */
+#mgKickGrid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+#mgKickGrid .mg-row {
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.mg-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 56px;
+}
+
+.mg-cell-beat { border-left: 2px solid var(--ink3); padding-left: 4px; }
+
+.mg-nd {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 2.5px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.08s, background 0.08s;
+  margin: 0 auto;
+}
+.mg-nd:hover { transform: scale(1.12); }
+.mg-nd.on { background: var(--blue); border-color: #0F3A6A; }
+.mg-nd.xhead {
+  border-radius: 0; transform: rotate(45deg);
+  width: 20px; height: 20px;
+}
+.mg-nd.on.xhead { background: var(--blue); border-color: #0F3A6A; }
+.mg-nd.xhead:hover { transform: rotate(45deg) scale(1.12); }
+
+.mg-step-num {
+  font-family: var(--mono);
+  font-size: 20px;
+  color: var(--ink3);
+  letter-spacing: 0;
+  text-align: center;
+  line-height: 1;
+}
+.mg-step-num.beat-num { color: var(--ink2); font-weight: 500; font-size: 20px; }
+
+/* Minigame controls bar */
+#mgControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+#mgPlayBtn {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: white; background: var(--blue);
+  border: 1px solid #0F3A6A; border-radius: 4px;
+  padding: 11px 28px; cursor: pointer; transition: all 0.15s ease;
+  min-width: 110px;
+}
+#mgPlayBtn:hover { background: #1E5A90; }
+#mgPlayBtn.active { background: #555; border-color: #444; }
+
+#mgResetBtn {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--ink2); background: transparent;
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 11px 24px; cursor: pointer; transition: all 0.15s ease;
+}
+#mgResetBtn:hover { border-color: var(--ink3); color: var(--ink); }
+
+/* Random Beats randomize button */
+#mgRandomizeBtn {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--red); background: transparent;
+  border: 1px solid #AA2020; border-radius: 4px;
+  padding: 11px 28px; cursor: pointer; transition: all 0.18s ease;
+}
+#mgRandomizeBtn:hover { background: rgba(184,48,48,0.1); border-color: var(--red); box-shadow: 0 0 14px rgba(184,48,48,0.2); }
+#mgRandomizeBtn:active { transform: scale(0.97); }
+
+/* Minigame section in header */
+.mg-header-group {
+  display: flex; align-items: center; gap: 6px;
+  padding-left: 10px; border-left: 1px solid #444;
+}
+.mg-header-label {
+  font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: #666;
+}
+
+/* ── HIGH SCORE SIDEBAR ── */
+#ggHighScores {
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  width: 200px;
+  z-index: 260;
+  background: var(--paper2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 56px 0 24px;
+  overflow: hidden;
+}
+#ggHsHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#ggHsTitle {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink);
+  flex: 1;
+}
+#ggHsModeBtn {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 3px 8px;
+  background: transparent;
+  color: var(--ink3);
+  cursor: pointer;
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+#ggHsModeBtn:hover { border-color: var(--ink2); color: var(--ink2); }
+#ggHsModeBtn.easy   { color: var(--ink2); border-color: var(--border); }
+#ggHsModeBtn.medium { color: #E8A045; border-color: #6A4010; }
+#ggHsModeBtn.hard   { color: var(--red); border-color: var(--red); }
+#ggHsList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+.gg-hs-row {
+  display: flex;
+  align-items: center;
+  padding: 5px 14px;
+  gap: 6px;
+  border-bottom: 1px solid var(--paper3);
+}
+.gg-hs-rank {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink3);
+  width: 16px;
+  flex-shrink: 0;
+  text-align: right;
+}
+.gg-hs-score {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  flex-shrink: 0;
+  min-width: 28px;
+  text-align: center;
+}
+.gg-hs-score.gold   { color: #C8A030; }
+.gg-hs-score.silver { color: #909090; }
+.gg-hs-score.bronze { color: #A05030; }
+.gg-hs-name {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  color: var(--ink2);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+  transition: color 0.1s;
+  flex: 1;
+  min-width: 0;
+}
+.gg-hs-name:hover { color: var(--red); }
+.gg-hs-delete-btn {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+  background: transparent;
+  border: none;
+  color: var(--ink3);
+  font-size: 13px;
+  font-family: var(--mono);
+  cursor: pointer;
+  padding: 0 2px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.gg-hs-row:hover .gg-hs-delete-btn {
+  opacity: 1;
+  pointer-events: all;
+}
+.gg-hs-delete-btn:hover { color: var(--red); }
+.gg-hs-name-input {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  width: 100px;
+  border: none;
+  border-bottom: 1px solid var(--red);
+  background: transparent;
+  color: var(--ink);
+  outline: none;
+  padding: 1px 2px;
+}
+
+/* ── CONFETTI ── */
+@keyframes confetti-fall {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--tx), var(--ty)) rotate(360deg);
+  }
+}
+
+.confetti {
+  position: fixed;
+  pointer-events: none;
+  font-size: 20px;
+  z-index: 9999;
+  animation: confetti-fall 2.5s ease-out forwards;
+}
+
+#ggHsEmpty {
+  padding: 24px 14px;
+  font-size: 11px;
+  color: var(--ink3);
+  text-align: center;
+  font-family: var(--mono);
+  line-height: 1.6;
+}
+#ggHsAddBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px auto 4px;
+  width: 28px; height: 28px;
+  border: 2px dashed var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink3);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-weight: 300;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+#ggHsAddBtn:hover {
+  border-color: var(--red);
+  color: var(--red);
+  background: #F5EAE0;
+}
+.gg-hs-score-input {
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 700;
+  width: 36px;
+  border: none;
+  border-bottom: 1px solid var(--red);
+  background: transparent;
+  color: var(--ink);
+  outline: none;
+  padding: 1px 2px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.gg-hs-new-row {
+  display: flex;
+  align-items: center;
+  padding: 5px 14px;
+  gap: 6px;
+  border-bottom: 1px solid var(--paper3);
+  background: rgba(184,48,48,0.04);
+}
+
+/* ── GUESS THE GROOVE ── */
+#ggOverlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 250;
+  background: var(--paper);
+  flex-direction: column;
+  align-items: center;
+  padding: 56px 32px 24px;
+  overflow-y: auto;
+}
+#ggOverlay.open { display: flex; }
+
+#ggTitle {
+  position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em;
+  text-transform: uppercase; color: var(--ink3); pointer-events: none; white-space: nowrap;
+}
+#ggExitBtn {
+  position: fixed; top: 16px; right: 20px; z-index: 260;
+  background: var(--ink); color: var(--paper); border: none; border-radius: 4px;
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 8px 18px; cursor: pointer; transition: background 0.15s;
+}
+#ggExitBtn:hover { background: var(--red); }
+
+#ggMain {
+  display: flex; gap: 48px; align-items: flex-start;
+  width: 100%; max-width: 1400px; justify-content: center;
+  flex-wrap: wrap;
+}
+
+.gg-panel {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  flex: 1; min-width: 420px; max-width: 640px;
+}
+
+.gg-panel-label {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--ink3);
+}
+
+/* Answer panel hidden state */
+#ggAnswerPanel.hidden #ggAnswerScore {
+  filter: blur(18px);
+  pointer-events: none;
+  user-select: none;
+}
+#ggAnswerPanel.hidden .gg-panel-label::after {
+  content: ' — hidden';
+}
+
+/* Student guess grid — same style as main edit grid but compact */
+#ggGuessGrid {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.gg-grid-table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: max-content;
+  margin: 0 auto;
+}
+.gg-grid-table th {
+  font-size: 9px; font-weight: 400; color: var(--ink3);
+  text-align: center; padding: 4px 2px;
+  min-width: 34px; background: var(--paper2);
+  border-bottom: 1px solid var(--border);
+}
+.gg-grid-table th.gg-beat { font-size: 10px; font-weight: 600; color: var(--ink2); }
+.gg-grid-table th.gg-bar  { border-left: 2px solid var(--ink3); }
+.gg-grid-table td.gg-label {
+  font-size: 10px; color: var(--ink2); padding: 0 8px;
+  white-space: nowrap; background: var(--paper2);
+  border-right: 2px solid var(--border);
+  border-bottom: 1px solid var(--paper3);
+  min-width: 52px; height: 44px; vertical-align: middle;
+  font-style: italic;
+}
+.gg-grid-table td.gg-cell {
+  width: 34px; height: 44px; text-align: center; vertical-align: middle;
+  border-bottom: 1px solid #EEE; cursor: pointer; position: relative;
+}
+.gg-grid-table td.gg-cell.gg-bdiv { border-left: 1px solid #DDD; }
+.gg-grid-table td.gg-cell.gg-bbar { border-left: 2px solid var(--ink3); }
+
+/* Correct/wrong cell highlight after reveal */
+.gg-cell.gg-correct { background: rgba(40,160,80,0.18) !important; }
+.gg-cell.gg-wrong   { background: rgba(184,48,48,0.18) !important; }
+.gg-cell.gg-wrong .nd { outline: 2px solid var(--red); outline-offset: 2px; }
+
+/* Result message */
+#ggResult {
+  font-family: var(--mono); font-size: 13px; letter-spacing: 0.1em;
+  min-height: 22px; text-align: center;
+}
+#ggResult.pass { color: #28A050; }
+#ggResult.fail { color: var(--red); }
+
+/* Per-panel control rows */
+.gg-panel-controls {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 10px; flex-wrap: wrap; justify-content: center;
+}
+
+/* Centered reveal row below both panels */
+#ggRevealRow {
+  display: flex; justify-content: center; align-items: center;
+  margin-top: 18px; width: 100%;
+}
+#ggSetBtn {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink2); background: transparent;
+  border: 1px solid var(--border); border-radius: 4px;
+  padding: 10px 20px; cursor: pointer; transition: all 0.15s;
+}
+#ggSetBtn:hover { border-color: var(--ink); color: var(--ink); }
+#ggCheckBtn {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: #28703A; background: transparent;
+  border: 1px solid #28703A; border-radius: 4px;
+  padding: 10px 20px; cursor: pointer; transition: all 0.15s;
+}
+#ggCheckBtn:hover { background: rgba(40,112,58,0.1); }
+#ggRevealBtn {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--amber, #E8A045); background: transparent;
+  border: 1px solid #6A4010; border-radius: 4px;
+  padding: 10px 20px; cursor: pointer; transition: all 0.15s;
+}
+#ggRevealBtn:hover { background: rgba(232,160,69,0.1); border-color: var(--amber, #E8A045); }
+#ggPlayGuessBtn, #ggPlayHiddenBtn, #ggPlayAnswerBtn, #ggResetBtn {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  border-radius: 4px; padding: 10px 20px; cursor: pointer; transition: all 0.15s;
+}
+#ggPlayGuessBtn  { color: white; background: var(--blue); border: 1px solid #0F3A6A; }
+#ggPlayGuessBtn:hover { background: #1E5A90; }
+#ggPlayGuessBtn.active, #ggPlayAnswerBtn.active, #ggPlayHiddenBtn.active { background: #555; border-color: #444; color: white; }
+#ggPlayHiddenBtn { color: white; background: #5A2E7A; border: 1px solid #3A1A5A; }
+#ggPlayHiddenBtn:hover { background: #6E3A90; }
+#ggPlayAnswerBtn { color: white; background: #28703A; border: 1px solid #1A5028; }
+#ggPlayAnswerBtn:hover { background: #2E8844; }
+#ggResetBtn { color: var(--ink2); background: transparent; border: 1px solid var(--border); }
+#ggResetBtn:hover { border-color: var(--ink3); color: var(--ink); }
+
+/* Set Groove Modal */
+#setGrooveModal {
+  display: none; position: fixed; inset: 0; z-index: 600;
+  background: rgba(0,0,0,0.5);
+  align-items: center; justify-content: center;
+}
+#setGrooveModal.open { display: flex; }
+#setGrooveBox {
+  background: var(--paper); border: 1px solid var(--border);
+  border-radius: 6px; box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+  display: flex; flex-direction: column;
+  max-width: 96vw; max-height: 85vh; overflow: hidden;
+}
+#setGrooveHeader {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px; background: var(--ink); border-radius: 6px 6px 0 0;
+}
+#setGrooveTitle {
+  font-family: var(--serif); font-size: 15px; color: var(--paper); font-style: italic;
+}
+#setGrooveHeader button {
+  background: none; border: 1px solid #555; color: #AAA; font-size: 14px;
+  width: 28px; height: 28px; border-radius: 3px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+#setGrooveHeader button:hover { border-color: var(--red); color: var(--red); }
+#setGrooveToolbar {
+  display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+  background: var(--paper2); border-bottom: 1px solid var(--border);
+  font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3);
+}
+#setGrooveToolbar select {
+  font-family: var(--mono); font-size: 11px; padding: 4px 8px;
+  border: 1px solid var(--border); border-radius: 3px;
+  background: var(--paper); color: var(--ink); outline: none; cursor: pointer;
+}
+#sgClearBtn {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em;
+  padding: 5px 12px; border-radius: 3px; border: 1px solid var(--border);
+  background: var(--paper); color: var(--ink2); cursor: pointer;
+}
+#sgClearBtn:hover { background: var(--paper3); }
+#setGrooveBody { padding: 16px 20px; overflow: auto; }
+#setGrooveFooter {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 12px 20px; border-top: 1px solid var(--border); background: var(--paper2);
+}
+#setGrooveFooter button {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em;
+  padding: 7px 16px; border-radius: 3px; cursor: pointer; transition: all 0.1s;
+}
+#setGrooveFooter button:first-child {
+  border: 1px solid var(--border); background: var(--paper); color: var(--ink2);
+}
+#setGrooveFooter button:first-child:hover { background: var(--paper3); }
+#sgSubmitBtn { background: var(--blue); border: 1px solid var(--blue); color: white; }
+#sgSubmitBtn:hover { background: #1E5A90; }
+
+@media print {
+  @page { margin: 8mm; }
+
+  header, .arrangement-label, .add-measure-btn,
+  .row-menu-btn, .measure-menu-btn, .measure-num-label,
+  .hbtn, .modal-overlay, .header-play-btn, .header-bpm,
+  #saveDialog, #loadPanel, #minigameOverlay, #ggOverlay,
+  #setGrooveModal, #focusOverlay, #annotationCanvas,
+  #annotationToolbar { display: none !important; }
+
+  html, body {
+    background: white !important;
+    height: auto !important;
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  .main {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  .score-strip {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  #scoreRows { width: 100% !important; }
+
+  .score-row {
+    border-bottom: none !important;
+    width: 100% !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 4px !important;
+  }
+
+  .score-render-row {
+    width: 100% !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* The SVG is set to width:100% inline by beforeprint handler */
+  .score-render-row svg,
+  [id^="full-score-render-"] svg {
+    width: 100% !important;
+    height: auto !important;
+    transform: none !important;
+    display: block !important;
+  }
+
+  [id^="full-score-render-"] {
+    width: 100% !important;
+  }
+
+  .score-scale-wrap {
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+  }
+}
+
+.print-sheet { display: none; }
+</style>
+</head>
+<body>
+
+<div id="cymbalMenu" class="cymbal-menu">
+  <!-- populated dynamically -->
+</div>
+
+<div id="focusOverlay">
+  <div id="focusRenderWrap"></div>
+</div>
+<div id="focusMeasureLabel"></div>
+
+<!-- Focus mode controls bar -->
+<div id="focusControls">
+  <button id="focusPlayBtn" onclick="focusTogglePlay()" style="font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:white;background:var(--blue);border:1px solid #0F3A6A;border-radius:4px;padding:8px 20px;cursor:pointer;transition:all 0.15s;min-width:90px;">▶ Play</button>
+  <div style="display:flex;align-items:center;gap:6px;padding-left:12px;border-left:1px solid rgba(255,255,255,0.15);">
+    <span style="font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.5);">BPM</span>
+    <input type="range" class="bpm-slider" min="40" max="240" step="1" id="focusBpmSlider"
+      oninput="globalBpm=+this.value;bpm=+this.value;document.getElementById('focusBpmNum').textContent=this.value"
+      style="accent-color:var(--red);width:90px;">
+    <span class="bpm-num" id="focusBpmNum" style="color:rgba(255,255,255,0.7);">80</span>
+  </div>
+</div>
+
+<button id="focusExitBtn" onclick="exitFocusMode()" style="display:none;">✕ Exit Focus</button>
+<button id="focusPrevBtn" onclick="focusStep(-1)" style="display:none;">‹</button>
+<button id="focusNextBtn" onclick="focusStep(+1)" style="display:none;">›</button>
+
+<!-- Annotation canvas (full-screen overlay on top of focus view) -->
+<canvas id="annotationCanvas"></canvas>
+
+<!-- Annotation toolbar (right side, visible in focus mode) -->
+<div id="annotationToolbar">
+  <!-- Tools -->
+  <button class="ann-btn active" id="ann-freehand" title="Freehand" onclick="setAnnTool('freehand')">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M2 14 C4 10 6 6 9 7 C12 8 10 14 13 12 C16 10 15 5 16 3"/>
+    </svg>
+  </button>
+  <button class="ann-btn" id="ann-line" title="Straight line" onclick="setAnnTool('line')">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <line x1="3" y1="15" x2="15" y2="3"/>
+    </svg>
+  </button>
+  <button class="ann-btn" id="ann-arrow" title="Arrow" onclick="setAnnTool('arrow')">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="3" y1="15" x2="15" y2="3"/>
+      <polyline points="8,3 15,3 15,10"/>
+    </svg>
+  </button>
+  <button class="ann-btn" id="ann-box" title="Hollow box" onclick="setAnnTool('box')">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="3" y="3" width="12" height="12" rx="1"/>
+    </svg>
+  </button>
+
+  <div class="ann-divider"></div>
+
+  <!-- Colors -->
+  <div class="ann-color-swatch active" style="background:#E8322A;" onclick="setAnnColor('#E8322A')" title="Red"></div>
+  <div class="ann-color-swatch" style="background:#1A1A1A;" onclick="setAnnColor('#1A1A1A')" title="Black"></div>
+  <div class="ann-color-swatch" style="background:#2962FF;" onclick="setAnnColor('#2962FF')" title="Blue"></div>
+  <div class="ann-color-swatch" style="background:#00C853;" onclick="setAnnColor('#00C853')" title="Green"></div>
+  <div class="ann-color-swatch" style="background:#FF6D00;" onclick="setAnnColor('#FF6D00')" title="Orange"></div>
+
+  <div class="ann-divider"></div>
+
+  <!-- Stroke width -->
+  <button class="ann-btn" id="ann-thin"   title="Thin"   onclick="setAnnWidth(2)"  style="font-size:10px;font-family:var(--mono);">—</button>
+  <button class="ann-btn active" id="ann-med" title="Medium" onclick="setAnnWidth(4)"  style="font-size:13px;font-family:var(--mono);">—</button>
+  <button class="ann-btn" id="ann-thick" title="Thick"  onclick="setAnnWidth(7)"  style="font-size:18px;font-family:var(--mono);">—</button>
+
+  <div class="ann-divider"></div>
+
+  <!-- Clear -->
+  <button class="ann-btn" title="Undo last" onclick="annUndo()" style="font-size:13px;">↩</button>
+  <button class="ann-btn" title="Clear all" onclick="annClear()" style="font-size:11px;font-family:var(--mono);letter-spacing:-0.05em;">CLR</button>
+</div>
+
+<header>
+  <div class="logo">
+    <span class="logo-title">Drum Arranger</span>
+    <span class="logo-sub">groove notation tool</span>
+  </div>
+  <div class="header-actions">
+    <input type="text" id="arrangementTitle" placeholder="Arrangement title…"
+      style="font-family:var(--serif);font-style:italic;font-size:14px;background:transparent;border:none;border-bottom:1px solid #555;color:var(--paper);outline:none;padding:2px 6px;width:200px;color:#DDD;"
+    >
+    <div class="header-bpm">
+      BPM
+      <input type="number" id="globalBpm" min="40" max="240" value="80"
+        oninput="setGlobalBpm(+this.value)"
+        onchange="setGlobalBpm(+this.value)"
+      >
+    </div>
+    <button class="header-play-btn" id="globalPlayBtn" onclick="toggleFullPlay()">▶ Play All</button>
+    <label style="font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#888;">Line break</label>
+    <select id="lineBreakSelect" class="hbtn" style="padding:5px 8px;cursor:pointer;" onchange="setLineBreak(+this.value)">
+      <option value="1">1 per row</option>
+      <option value="2">2 per row</option>
+      <option value="4" selected>4 per row</option>
+    </select>
+    <button class="hbtn save-btn" onclick="openSaveDialog()">⬇ Save</button>
+    <button class="hbtn" id="loadBtn" onclick="toggleLoadPanel()">⬆ Load</button>
+    <div class="mg-header-group">
+      <div style="position:relative;">
+        <button class="hbtn" id="mgDropBtn" onclick="toggleMgDropdown()" style="padding-left:12px;padding-right:12px;">🎮 Mini Games ▾</button>
+        <div id="mgDropdown" style="display:none;position:absolute;top:100%;right:0;margin-top:4px;background:var(--paper);border:1px solid var(--border);border-radius:4px;box-shadow:0 4px 16px rgba(0,0,0,0.18);z-index:500;min-width:160px;padding:4px 0;">
+          <button onclick="toggleMgDropdown();openMiniGame('addkick')" style="display:block;width:100%;text-align:left;padding:8px 16px;background:none;border:none;font-family:var(--mono);font-size:11px;color:var(--ink);cursor:pointer;white-space:nowrap;" onmouseover="this.style.background='var(--paper2)'" onmouseout="this.style.background='none'">🥁 Add a Kick</button>
+          <button onclick="toggleMgDropdown();openMiniGame('randombeats')" style="display:block;width:100%;text-align:left;padding:8px 16px;background:none;border:none;font-family:var(--mono);font-size:11px;color:var(--ink);cursor:pointer;white-space:nowrap;" onmouseover="this.style.background='var(--paper2)'" onmouseout="this.style.background='none'">🎲 Random Beats</button>
+          <button onclick="toggleMgDropdown();openMiniGame('guessgroove')" style="display:block;width:100%;text-align:left;padding:8px 16px;background:none;border:none;font-family:var(--mono);font-size:11px;color:var(--ink);cursor:pointer;white-space:nowrap;" onmouseover="this.style.background='var(--paper2)'" onmouseout="this.style.background='none'">🎯 Guess the Groove</button>
+        </div>
+      </div>
+    </div>
+    <button class="hbtn primary" onclick="window.print()">⎙ Print</button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="arrangement-label">Arrangement — click a measure to edit</div>
+  <div class="score-strip" id="scoreStrip">
+    <div id="scoreRows">
+      <!-- rows of 4 measures rendered here by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- SAVE DIALOG -->
+<div id="saveDialog" onclick="saveDialogBackdropClick(event)">
+  <div id="saveDialogBox">
+    <h3>Save Arrangement</h3>
+    <input type="text" id="saveNameInput" placeholder="Arrangement name…" maxlength="80" onkeydown="saveDialogKey(event)">
+    <div id="saveDialogActions">
+      <button class="hbtn" onclick="closeSaveDialog()">Cancel</button>
+      <button class="hbtn primary" onclick="confirmSave()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOAD PANEL -->
+<div id="loadPanel">
+  <div id="loadPanel-header">Saved Arrangements</div>
+  <div id="loadPanel-list"></div>
+</div>
+
+<!-- MINIGAME OVERLAY -->
+<div id="minigameOverlay">
+  <div id="mgTitle"></div>
+  <button id="mgExitBtn" onclick="closeMiniGame()">✕ Exit</button>
+  <div id="mgScoreRender"></div>
+  <div id="mgKickGrid" style="display:none;"></div>
+  <div id="mgControls">
+    <button id="mgPlayBtn" onclick="mgTogglePlay()">▶ Play</button>
+    <button id="mgResetBtn" onclick="mgReset()">↺ Reset</button>
+    <button id="mgRandomizeBtn" style="display:none;" onclick="mgRandomize()">⇄ Randomize</button>
+    <button id="mgDivBtn" style="display:none;font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;border:1px solid var(--border);border-radius:4px;padding:6px 12px;background:transparent;color:var(--ink2);cursor:pointer;transition:all 0.15s;" onclick="mgToggleKickDiv()">16th</button>
+    <button onclick="mgExportToArranger()" style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;border:1px solid #4A7;border-radius:4px;padding:6px 14px;background:transparent;color:#4A7;cursor:pointer;transition:all 0.15s;">⬆ Export</button>
+    <div style="display:flex;align-items:center;gap:6px;margin-left:8px;padding-left:14px;border-left:1px solid var(--border);">
+      <span style="font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">BPM</span>
+      <input type="range" class="bpm-slider" min="40" max="240" step="1" value="80" id="mgBpmSlider"
+        oninput="globalBpm=+this.value;bpm=+this.value;document.getElementById('mgBpmNum').textContent=this.value">
+      <span class="bpm-num" id="mgBpmNum">80</span>
+    </div>
+  </div>
+</div>
+
+<!-- GUESS THE GROOVE OVERLAY -->
+<div id="ggOverlay">
+  <div id="ggTitle">Guess the Groove</div>
+  <button id="ggExitBtn" onclick="closeGuessGroove()">✕ Exit</button>
+  <div id="ggStreak" style="position:fixed;top:14px;left:220px;font-family:var(--mono);font-size:30px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink2);z-index:260;">🔥 Streak: <span id="ggStreakNum">0</span></div>
+
+  <!-- High Score sidebar -->
+  <div id="ggHighScores">
+    <div id="ggHsHeader">
+      <span id="ggHsTitle">High Scores</span>
+      <button id="ggHsModeBtn" class="easy" onclick="ggCycleHsMode()">Easy</button>
+    </div>
+    <div id="ggHsList"></div>
+  </div>
+
+  <div id="ggMain">
+
+    <!-- LEFT: Student guess panel -->
+    <div class="gg-panel" id="ggGuessPanel">
+      <div class="gg-panel-label">Your Guess</div>
+      <div id="ggGuessScore"></div>
+      <div id="ggGuessGrid"></div>
+      <div id="ggResult"></div>
+      <div class="gg-panel-controls">
+        <button id="ggPlayGuessBtn" onclick="ggTogglePlay('guess')">▶ Play</button>
+        <button id="ggPlayHiddenBtn" onclick="ggTogglePlay('answer')">▶ Play Hidden</button>
+        <button id="ggCheckBtn" onclick="ggCheck()">✓ Check</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;">
+        <span style="font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">BPM</span>
+        <input type="range" class="bpm-slider" min="40" max="240" step="1" value="80" id="ggBpmSlider"
+          oninput="
+            const minBpm = ggHardMode ? 90 : 40;
+            if (+this.value < minBpm) { this.value = minBpm; }
+            globalBpm=+this.value;bpm=+this.value;document.getElementById('ggBpmNum').textContent=this.value">
+        <span class="bpm-num" id="ggBpmNum">80</span>
+      </div>
+    </div>
+
+    <!-- RIGHT: Hidden answer panel -->
+    <div class="gg-panel" id="ggAnswerPanel">
+      <div class="gg-panel-label" id="ggAnswerLabel">Hidden Groove</div>
+      <div id="ggAnswerScore"></div>
+      <div class="gg-panel-controls">
+        <button id="ggSetBtn" onclick="openSetGroove()">✎ Set Groove</button>
+        <button id="ggResetBtn" onclick="ggResetRound()">↺ Reset</button>
+        <button id="ggPlayAnswerBtn" onclick="ggTogglePlay('answer')" style="display:none;">▶ Play Answer</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="ggRevealRow">
+    <button id="ggRevealBtn" onclick="ggReveal()">👁 Reveal</button>
+    <button id="ggDiffBtn" onclick="ggToggleDifficulty()" style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;border:1px solid var(--border);border-radius:4px;padding:8px 16px;background:transparent;color:var(--ink2);cursor:pointer;transition:all 0.15s;margin-left:10px;">Easy</button>
+  </div>
+</div>
+
+<!-- SET GROOVE MODAL -->
+<div id="setGrooveModal">
+  <div id="setGrooveBox">
+    <div id="setGrooveHeader">
+      <span id="setGrooveTitle">Set the Groove</span>
+      <button onclick="closeSetGroove()">✕</button>
+    </div>
+    <div id="setGrooveToolbar">
+      <label>Division</label>
+      <select id="sgDivSelect" onchange="sgSetDivision(this.value)">
+        <option value="8">8th notes</option>
+        <option value="16" selected>16th notes</option>
+        <option value="12">Triplets</option>
+      </select>
+      <button id="sgClearBtn" onclick="sgClear()">Clear</button>
+    </div>
+    <div id="setGrooveBody">
+      <table id="sgGrid" class="edit-grid"></table>
+    </div>
+    <div id="setGrooveFooter">
+      <button onclick="closeSetGroove()">Cancel</button>
+      <button id="sgSubmitBtn" onclick="submitGroove()">✓ Set Groove</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="overlayClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Edit Measure 1</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+
+    <div class="modal-toolbar">
+      <div class="mtool-group">
+        <button class="mbtn play-btn" id="playBtn" onclick="togglePlay()">▶ Play</button>
+      </div>
+      <div class="mtool-group">
+        <label>BPM</label>
+        <div class="bpm-wrap">
+          <input type="range" class="bpm-slider" min="40" max="240" value="80" id="bpmSlider" oninput="setBpm(this.value)" step="1">
+          <span class="bpm-num" id="bpmNum">80</span>
+        </div>
+      </div>
+      <div class="mtool-group">
+        <label>Division</label>
+        <select class="mselect" id="divSelect" onchange="setDivision(this.value)">
+          <option value="8">8th notes</option>
+          <option value="16" selected>16th notes</option>
+          <option value="12">Triplets</option>
+        </select>
+      </div>
+      <div class="mtool-group">
+        <label>Toms</label>
+        <button class="mbtn tom-toggle" id="tomToggle" onclick="toggleToms()">Show Toms</button>
+      </div>
+      <div class="mtool-group">
+        <button class="mbtn" onclick="clearMeasure()">Clear</button>
+        <button class="mbtn active" onclick="saveClose()" style="background:var(--blue);border-color:var(--blue);color:white;">Save &amp; Close</button>
+      </div>
+    </div>
+
+    <div class="modal-body">
+      <table class="edit-grid" id="editGrid"></table>
+    </div>
+
+    <div class="modal-legend">
+      <div class="leg-item"><div class="leg-dot" style="background:var(--blue);border-color:#0F3A6A;transform:rotate(45deg)"></div>Hi-Hat</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#C94A00;border-color:#7A2800;transform:rotate(45deg)"></div>Crash</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#1A7A50;border-color:#0A4A2E;transform:rotate(45deg)"></div>Ride</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--blue);border-color:#0F3A6A"></div>Normal</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--red);border-color:#7A1010"></div>Accent</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#C8D8C0;border-color:#3A6A30"></div>Ghost</div>
+      <div class="leg-item" style="color:var(--ink3);font-size:9px;">Click = toggle · Right-click HH = set cymbal type</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ────────────────────────────────────────────────────────────────
+const CORE_INSTS = [
+  { id: 'hihat',   label: 'Hi-hat',    isX: true  },
+  { id: 'snare',   label: 'Snare',     isX: false },
+  { id: 'kick',    label: 'Kick',      isX: false },
+  { id: 'hihatft', label: 'Hi-hat Ft.',isX: true  },
+];
+const TOM_INSTS = [
+  { id: 'tom1',  label: 'Tom 1',     isX: false },
+  { id: 'tom2',  label: 'Tom 2',     isX: false },
+  { id: 'floor', label: 'Floor Tom', isX: false },
+];
+
+const ABC_MAP = {
+  crash:   { pitch: 'a',  xhead: true  },
+  hihat:   { pitch: 'g',  xhead: true  },
+  ride:    { pitch: 'f',  xhead: true  },
+  snare:   { pitch: 'c',  xhead: false },
+  tom1:    { pitch: 'e',  xhead: false },
+  tom2:    { pitch: 'd',  xhead: false },
+  floor:   { pitch: 'A',  xhead: false },
+  kick:    { pitch: 'F',  xhead: false },
+  hihatft: { pitch: 'D',  xhead: true  },
+};
+
+// ── X NOTEHEADS ──────────────────────────────────────────────────────────
+// abcjs encodes pitch in CSS classes: abcjs-p{N}
+// Discovered by probing: crash=a→p12, hihat=g→p11, ride=f→p10, hihatft=D→p1
+const X_PITCH_CLASSES = new Set(['abcjs-p12', 'abcjs-p11', 'abcjs-p10', 'abcjs-p1']);
+
+// Diatonic steps above E4 (bottom staff line) for each ABC pitch letter
+// Negative = below staff, positive = above
+const PITCH_STEPS = { a:10, g:9, f:8, e:7, d:6, c:5, B:4, A:3, G:2, F:1, E:0, D:-1, C:-2 };
+
+// Map abcjs p-class number → ABC pitch letter (from our probe)
+const PCLASS_TO_PITCH = {
+  12:'a', 11:'g', 10:'f', 9:'e', 8:'d', 7:'c', 5:'A', 4:'G', 3:'F', 1:'D'
+};
+
+function applyXNoteheads(containerId) {
+  setTimeout(() => _doApplyXNoteheads(containerId), 80);
+}
+
+function _doApplyXNoteheads(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const svg = container.querySelector('svg');
+  if (!svg) return;
+
+  // Find the 5 main staff lines (wide, flat, horizontal paths)
+  const lineYs = [];
+  svg.querySelectorAll('path').forEach(p => {
+    const d = (p.getAttribute('d') || '').trim();
+    const m = d.match(/^M\s*([\d.-]+)\s+([\d.-]+)\s+L\s*([\d.-]+)\s+([\d.-]+)/);
+    if (!m) return;
+    const y1 = +m[2], y2 = +m[4], w = Math.abs(+m[3] - +m[1]);
+    if (Math.abs(y1-y2) < 1 && w > 30) lineYs.push(y1);
+  });
+  const allStaffYs = [...new Set(lineYs.map(y => Math.round(y*4)/4))].sort((a,b) => a-b);
+  // Take the bottom 5 lines (main staff, ignoring ledger lines above)
+  const staffYs = allStaffYs.slice(-5);
+  if (staffYs.length < 5) return;
+
+  const botY      = staffYs[4];                         // E4 bottom line
+  const halfStepPx = (staffYs[4] - staffYs[0]) / 8;    // px per diatonic step
+  const TOL       = halfStepPx * 0.55;                  // matching tolerance
+
+  // For each note group with at least one X pitch, replace the right noteheads
+  svg.querySelectorAll('.abcjs-note').forEach(noteGroup => {
+    const classes = noteGroup.className.baseVal.split(' ');
+    const xPClasses = classes.filter(c => X_PITCH_CLASSES.has(c));
+    if (!xPClasses.length) return;
+
+    // Compute expected Y for each X pitch in this chord
+    const xTargetYs = xPClasses.map(pc => {
+      const pitch = PCLASS_TO_PITCH[pc.replace('abcjs-p','')];
+      const step  = PITCH_STEPS[pitch];
+      return (step !== undefined) ? botY - step * halfStepPx : null;
+    }).filter(y => y !== null);
+
+    if (!xTargetYs.length) return;
+
+    // Collect notehead paths in this group
+    const noteheads = [];
+    noteGroup.querySelectorAll('path').forEach(p => {
+      const d = (p.getAttribute('d') || '').trim();
+      if (!d.match(/[cCsS]/)) return;
+      if (d.match(/^M[\d.\s-]+L/)) return;
+      if (p.classList.contains('abcjs-stem')) return;
+      let bb; try { bb = p.getBBox(); } catch(e) { return; }
+      if (!bb || bb.width < 2 || bb.height < 2) return;
+      if (bb.width > 22 || bb.height > 22) return;
+      noteheads.push({ el: p, cy: bb.y + bb.height/2, cx: bb.x + bb.width/2, rx: bb.width/2 });
+    });
+
+    if (!noteheads.length) return;
+
+    // Match each X target Y to the closest notehead
+    const replaced = new Set();
+    xTargetYs.forEach(ty => {
+      let best = null, bestDist = Infinity;
+      noteheads.forEach((nh, i) => {
+        if (replaced.has(i)) return;
+        const dist = Math.abs(nh.cy - ty);
+        if (dist < TOL && dist < bestDist) { bestDist = dist; best = i; }
+      });
+      if (best !== null) {
+        replaced.add(best);
+        const nh = noteheads[best];
+        replacePathWithX(nh.el, nh.cx, nh.cy, nh.rx);
+      }
+    });
+  });
+}
+
+function replacePathWithX(pathEl, cx, cy, rx) {
+  if (!rx || rx < 1) rx = 4;
+  const size = rx * 0.75;
+  const sw   = Math.max(1.0, rx * 0.42);
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  [[cx-size, cy-size, cx+size, cy+size],
+   [cx+size, cy-size, cx-size, cy+size]].forEach(([x1,y1,x2,y2]) => {
+    const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+    l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+    l.setAttribute('stroke', 'black');
+    l.setAttribute('stroke-width', sw);
+    l.setAttribute('stroke-linecap', 'round');
+    g.appendChild(l);
+  });
+  pathEl.parentNode.replaceChild(g, pathEl);
+}
+
+let measures = [];      // array of { id, division, data: {instId: [states]} }
+let nextMeasureId = 1;
+let editingIdx = null;
+let showToms = false;
+let division = 16;
+let bpm = 80;
+let playing = false;
+let audioCtx = null;
+let schedulerTimer = null;
+let nextStepTime = 0;
+let schedStep = 0;
+let litStep = -1;
+
+function getInsts() {
+  return showToms ? [...CORE_INSTS, ...TOM_INSTS] : CORE_INSTS;
+}
+
+function emptyData(div) {
+  const data = {};
+  [...CORE_INSTS, ...TOM_INSTS].forEach(inst => {
+    data[inst.id] = new Array(div).fill(0);
+  });
+  // crash and ride are always tracked even though they're not shown as separate rows
+  if (!data.crash) data.crash = new Array(div).fill(0);
+  if (!data.ride)  data.ride  = new Array(div).fill(0);
+  return data;
+}
+
+function defaultBeatData(div) {
+  const data = emptyData(div);
+  if (div === 16) {
+    // Hi-hat: all 8th notes (every 2 steps: 0,2,4,6,8,10,12,14)
+    [0,2,4,6,8,10,12,14].forEach(s => { data.hihat[s] = 1; });
+    // Kick: beat 1 and 3 (steps 0, 8)
+    data.kick[0] = 1; data.kick[8] = 1;
+    // Snare: beat 2 and 4 (steps 4, 12)
+    data.snare[4] = 1; data.snare[12] = 1;
+  } else if (div === 8) {
+    // Hi-hat: every step
+    [0,1,2,3,4,5,6,7].forEach(s => { data.hihat[s] = 1; });
+    // Kick: beat 1 and 3 (steps 0, 4)
+    data.kick[0] = 1; data.kick[4] = 1;
+    // Snare: beat 2 and 4 (steps 2, 6)
+    data.snare[2] = 1; data.snare[6] = 1;
+  }
+  return data;
+}
+
+// ── MEASURES ─────────────────────────────────────────────────────────────
+function addMeasure() {
+  const m = { id: nextMeasureId++, division: 16, data: defaultBeatData(16) };
+  measures.push(m);
+  renderScore();
+}
+
+function deleteMeasure(idx, e) {
+  e.stopPropagation();
+  measures.splice(idx, 1);
+  renderScore();
+}
+
+let copiedMeasure = null;
+
+let MEASURES_PER_ROW = 4;
+
+function setLineBreak(n) {
+  MEASURES_PER_ROW = n;
+  renderScore();
+}
+
+function renderScore() {
+  const container = document.getElementById('scoreRows');
+  if (!container) return;
+  // Remove any stale row menus attached to body
+  document.querySelectorAll('.row-menu').forEach(el => el.remove());
+  container.innerHTML = '';
+
+  // Split measures into rows of MEASURES_PER_ROW
+  const rowCount = Math.max(1, Math.ceil(measures.length / MEASURES_PER_ROW));
+
+  for (let row = 0; row < rowCount; row++) {
+    const rowMeasures = measures.slice(row * MEASURES_PER_ROW, (row + 1) * MEASURES_PER_ROW);
+    const isLastRow = row === rowCount - 1;
+
+    const rowEl = document.createElement('div');
+    rowEl.className = 'score-row';
+    rowEl.dataset.row = row;
+
+    // Each row gets its own render wrap (for abcjs + overlays)
+    const renderWrap = document.createElement('div');
+    renderWrap.className = 'score-render-row';
+    renderWrap.id = `score-render-wrap-${row}`;
+    rowEl.appendChild(renderWrap);
+
+    // + button only on last row, after the measures
+    if (isLastRow) {
+      const addBtn = document.createElement('button');
+      addBtn.className = 'add-measure-btn';
+      addBtn.id = 'addBtn';
+      addBtn.title = 'Add measure';
+      addBtn.textContent = '+';
+      addBtn.onclick = addMeasure;
+      rowEl.appendChild(addBtn);
+    }
+
+    // Row-level ⋯ menu button
+    const rowMenuBtn = document.createElement('button');
+    rowMenuBtn.className = 'row-menu-btn';
+    rowMenuBtn.textContent = '⋯';
+    rowMenuBtn.title = 'Row options';
+    rowMenuBtn.onclick = (e) => toggleRowMenu(e, row);
+    rowEl.appendChild(rowMenuBtn);
+
+    // Row dropdown menu
+    const rowMenu = document.createElement('div');
+    rowMenu.className = 'row-menu';
+    rowMenu.id = `row-menu-${row}`;
+    rowMenu.innerHTML = `
+      <button onclick="rowMenuAction('focus', ${row})">⛶ Focus line</button>
+      <button onclick="rowMenuAction('duplicate', ${row})">⧉ Duplicate entire line</button>
+      <button onclick="rowMenuAction('delete', ${row})" class="danger">🗑 Delete entire line</button>
+    `;
+    document.body.appendChild(rowMenu);
+
+    container.appendChild(rowEl);
+
+    // Render the ABC for this row's measures
+    renderRowScore(row, rowMeasures);
+  }
+
+  // If no measures yet, show hint
+  if (measures.length === 0) {
+    container.innerHTML = `
+      <div class="score-row">
+        <div style="color:var(--ink3);font-size:11px;font-family:var(--mono);padding:12px 0;flex:1;">Click + to add a measure</div>
+        <button class="add-measure-btn" id="addBtn" title="Add measure" onclick="addMeasure()">+</button>
+      </div>`;
+  }
+}
+
+function toggleRowMenu(e, row) {
+  e.stopPropagation();
+  document.querySelectorAll('.row-menu').forEach(m => m.classList.remove('open'));
+  document.querySelectorAll('.measure-menu').forEach(m => m.classList.remove('open'));
+  const menu = document.getElementById(`row-menu-${row}`);
+  if (!menu) return;
+  const btn = e.currentTarget;
+  const r = btn.getBoundingClientRect();
+  menu.style.top  = (r.bottom + 4) + 'px';
+  menu.style.left = Math.min(r.left, window.innerWidth - 180) + 'px';
+  menu.classList.add('open');
+}
+
+function rowMenuAction(action, row) {
+  document.querySelectorAll('.row-menu').forEach(m => m.classList.remove('open'));
+  const start = row * MEASURES_PER_ROW;
+  const rowMs = measures.slice(start, start + MEASURES_PER_ROW);
+  if (!rowMs.length) return;
+
+  if (action === 'focus') {
+    enterFocusMode(start, rowMs.length);
+  } else if (action === 'duplicate') {
+    const dups = rowMs.map(m => { const d = JSON.parse(JSON.stringify(m)); d.id = nextMeasureId++; return d; });
+    measures.splice(start + rowMs.length, 0, ...dups);
+    renderScore();
+  } else if (action === 'delete') {
+    measures.splice(start, rowMs.length);
+    // Focus the measure just before the deleted row, if any
+    const newFocus = Math.min(start, measures.length - 1);
+    focusedIdx = newFocus >= 0 ? newFocus : null;
+    renderScore();
+    // Highlight the newly focused overlay after render
+    if (focusedIdx !== null) _highlightOverlay(focusedIdx);
+  }
+}
+
+// Set persistent focus on an overlay by measure index
+// ── FOCUS MODE ──────────────────────────────────────────────────────────
+let focusMode = false;
+let focusMeasureIdx = 0;   // for single-measure focus
+let focusRowStart  = null; // for row focus (null = single measure)
+let focusRowCount  = 1;
+
+function enterFocusMode(idx, rowCount) {
+  focusMode = true;
+  focusMeasureIdx = idx;
+  focusRowStart   = (rowCount && rowCount > 1) ? idx : null;
+  focusRowCount   = rowCount || 1;
+
+  document.getElementById('focusOverlay').classList.add('open');
+  document.getElementById('focusExitBtn').style.display = '';
+  document.getElementById('focusPrevBtn').style.display = '';
+  document.getElementById('focusNextBtn').style.display = '';
+  document.getElementById('focusControls').classList.add('visible');
+  const fSlider = document.getElementById('focusBpmSlider');
+  const fNum    = document.getElementById('focusBpmNum');
+  if (fSlider) { fSlider.value = globalBpm; fNum.textContent = globalBpm; }
+  document.getElementById('annotationToolbar').classList.add('visible');
+  annInit();
+  renderFocusMeasure();
+}
+
+function exitFocusMode() {
+  focusMode = false;
+  focusStopPlay();
+  document.getElementById('focusOverlay').classList.remove('open');
+  document.getElementById('focusExitBtn').style.display = 'none';
+  document.getElementById('focusPrevBtn').style.display = 'none';
+  document.getElementById('focusNextBtn').style.display = 'none';
+  document.getElementById('focusControls').classList.remove('visible');
+  document.getElementById('annotationToolbar').classList.remove('visible');
+  document.getElementById('focusMeasureLabel').textContent = '';
+  annHide();
+  annHistory = [];
+  const wrap = document.getElementById('focusRenderWrap');
+  wrap.innerHTML = '';
+  const fixedRender = document.getElementById('focus-render-visible');
+  if (fixedRender) fixedRender.remove();
+}
+
+function focusStep(dir) {
+  if (focusRowStart !== null) {
+    // Row focus: step by row
+    const newStart = focusMeasureIdx + dir * focusRowCount;
+    if (newStart < 0 || newStart >= measures.length) return;
+    focusMeasureIdx = newStart;
+  } else {
+    // Single measure focus: step by 1
+    const newIdx = focusMeasureIdx + dir;
+    if (newIdx < 0 || newIdx >= measures.length) return;
+    focusMeasureIdx = newIdx;
+  }
+  renderFocusMeasure();
+  focusStopPlay();
+  // Clear annotations when changing measure
+  const ctx = ANN_CTX(); if (ctx) ctx.clearRect(0,0,ANN_CANVAS().width,ANN_CANVAS().height);
+  annHistory = [];
+}
+
+function renderFocusMeasure() {
+  if (!focusMode || typeof ABCJS === 'undefined') return;
+
+  const wrap = document.getElementById('focusRenderWrap');
+  wrap.innerHTML = '';
+  const existing = document.getElementById('focus-render-visible');
+  if (existing) existing.remove();
+
+  const focusMeasures = focusRowStart !== null
+    ? measures.slice(focusMeasureIdx, focusMeasureIdx + focusRowCount)
+    : [measures[focusMeasureIdx]];
+  if (!focusMeasures.length) return;
+
+  const labelEl = document.getElementById('focusMeasureLabel');
+  labelEl.textContent = focusRowStart !== null
+    ? `Measures ${focusMeasureIdx + 1} – ${Math.min(focusMeasureIdx + focusRowCount, measures.length)}`
+    : `Measure ${focusMeasureIdx + 1} of ${measures.length}`;
+
+  document.getElementById('focusPrevBtn').disabled = focusMeasureIdx <= 0;
+  document.getElementById('focusNextBtn').disabled = focusRowStart !== null
+    ? focusMeasureIdx + focusRowCount >= measures.length
+    : focusMeasureIdx >= measures.length - 1;
+
+  const nCount    = focusMeasures.length;
+  const noteScale = ({ 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0 })[Math.min(nCount, 4)] ?? 1.0;
+  const baseSW    = 900;
+
+  const offId = '__focus-offscreen';
+  let offDiv = document.getElementById(offId);
+  if (!offDiv) { offDiv = document.createElement('div'); offDiv.id = offId; document.body.appendChild(offDiv); }
+  offDiv.innerHTML = '';
+  offDiv.style.cssText = `position:fixed;left:-9999px;top:0;width:${baseSW}px;visibility:hidden;`;
+
+  ABCJS.renderAbc(offId, rowABC(focusMeasures, focusMeasureIdx), {
+    staffwidth: baseSW, scale: noteScale,
+    paddingtop: 20, paddingbottom: 20, paddingright: 30, paddingleft: 30,
+    add_classes: true,
+  });
+
+  const svg = offDiv.querySelector('svg');
+  if (!svg) { offDiv.remove(); return; }
+
+  _doApplyXNoteheads(offId);
+
+  // Find staff lines to get true measure start/end X (same as mgRenderScore)
+  let staffMinX = Infinity, staffMaxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  svg.querySelectorAll('path').forEach(p => {
+    const d2 = (p.getAttribute('d') || '').trim();
+    const m2 = d2.match(/^M\s*([\d.-]+)\s+([\d.-]+)\s+L\s*([\d.-]+)\s+([\d.-]+)/);
+    if (m2) {
+      const lineW = Math.abs(+m2[3] - +m2[1]);
+      if (Math.abs(+m2[2] - +m2[4]) < 1 && lineW > 30) {
+        staffMinX = Math.min(staffMinX, +m2[1]);
+        staffMaxX = Math.max(staffMaxX, +m2[3]);
+      }
+    }
+  });
+  svg.querySelectorAll('path, line, ellipse, rect').forEach(el => {
+    try { const bb = el.getBBox(); if (bb.width > 0 && bb.height > 0) { minY = Math.min(minY, bb.y); maxY = Math.max(maxY, bb.y + bb.height); } } catch(e) {}
+  });
+
+  if (!isFinite(staffMinX)) { offDiv.remove(); return; }
+
+  const pad = 20;
+  const cx  = (staffMinX + staffMaxX) / 2;
+  const hw  = (staffMaxX - staffMinX) / 2;
+  const vbX = cx - hw - pad;
+  const vbW = (hw + pad) * 2;
+  const vbY = minY - pad;
+  const vbH = (maxY - minY) + pad * 2;
+
+  svg.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
+
+  // Scale to fill ~85% of screen width
+  const availW   = window.innerWidth * 0.85;
+  const availH   = window.innerHeight - 200;
+  const cssScale = Math.min(availW / vbW, availH / vbH);
+  const cssW     = Math.round(vbW * cssScale);
+  const cssH     = Math.round(vbH * cssScale);
+
+  svg.removeAttribute('width');
+  svg.removeAttribute('height');
+  svg.style.cssText = `display:block;width:${cssW}px;height:${cssH}px;`;
+
+  // Place fixed overlay centered on viewport
+  const scaleWrap = document.createElement('div');
+  scaleWrap.id = 'focus-render-visible';
+  const leftOffset = Math.floor((window.innerWidth - cssW) / 2);
+  const topOffset  = Math.max(80, Math.floor((window.innerHeight - cssH) / 2));
+  scaleWrap.style.cssText = `position:fixed;left:0;top:0;width:100vw;height:100vh;pointer-events:none;z-index:151;`;
+
+  const inner = document.createElement('div');
+  inner.style.cssText = `position:absolute;left:${leftOffset}px;top:${topOffset}px;`;
+  inner.appendChild(svg);
+  scaleWrap.appendChild(inner);
+  document.body.appendChild(scaleWrap);
+  offDiv.remove();
+}
+
+// ── ANNOTATION SYSTEM ────────────────────────────────────────────────────
+let annTool    = 'freehand';
+let annColor   = '#E8322A';
+let annWidth   = 4;
+let annDrawing = false;
+let annStart   = null;           // {x,y} for line/arrow/box
+let annPath    = [];             // for freehand
+let annHistory = [];             // saved ImageData snapshots for undo
+
+const ANN_CANVAS = () => document.getElementById('annotationCanvas');
+const ANN_CTX    = () => ANN_CANVAS().getContext('2d');
+
+function annInit() {
+  const c = ANN_CANVAS();
+  c.width  = window.innerWidth;
+  c.height = window.innerHeight;
+  c.style.display = 'block';
+  annSetMode();
+  // Bind events once
+  if (!c._annBound) {
+    c.addEventListener('mousedown',  annDown);
+    c.addEventListener('mousemove',  annMove);
+    c.addEventListener('mouseup',    annUp);
+    c.addEventListener('mouseleave', annUp);
+    // Touch support
+    c.addEventListener('touchstart',  e => { e.preventDefault(); annDown(e.touches[0]); }, {passive:false});
+    c.addEventListener('touchmove',   e => { e.preventDefault(); annMove(e.touches[0]); }, {passive:false});
+    c.addEventListener('touchend',    e => { e.preventDefault(); annUp(e.changedTouches[0]); }, {passive:false});
+    c._annBound = true;
+  }
+}
+
+function annHide() {
+  const c = ANN_CANVAS();
+  c.style.display = 'none';
+  c.className = '';
+}
+
+function annSetMode() {
+  const c = ANN_CANVAS();
+  c.className = annTool + '-mode';
+}
+
+function setAnnTool(tool) {
+  annTool = tool;
+  annSetMode();
+  // Update active button
+  ['freehand','line','arrow','box'].forEach(t => {
+    const btn = document.getElementById('ann-' + t);
+    if (btn) btn.classList.toggle('active', t === tool);
+  });
+}
+
+function setAnnColor(color) {
+  annColor = color;
+  document.querySelectorAll('.ann-color-swatch').forEach(sw => {
+    sw.classList.toggle('active', sw.style.background === color ||
+      sw.style.backgroundColor === color ||
+      rgbToHex(sw.style.backgroundColor) === color.toLowerCase());
+  });
+}
+
+function setAnnWidth(w) {
+  annWidth = w;
+  ['ann-thin','ann-med','ann-thick'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  const map = {2:'ann-thin', 4:'ann-med', 7:'ann-thick'};
+  if (map[w]) document.getElementById(map[w])?.classList.add('active');
+}
+
+function rgbToHex(rgb) {
+  const m = rgb.match(/\d+/g);
+  if (!m) return '';
+  return '#' + m.slice(0,3).map(n => (+n).toString(16).padStart(2,'0')).join('');
+}
+
+function annPos(e) {
+  const c = ANN_CANVAS();
+  const r = c.getBoundingClientRect();
+  return { x: (e.clientX ?? e.pageX) - r.left, y: (e.clientY ?? e.pageY) - r.top };
+}
+
+function annDown(e) {
+  annDrawing = true;
+  const pos = annPos(e);
+  annStart = pos;
+  annPath = [pos];
+  // Save snapshot for undo before starting new stroke
+  const ctx = ANN_CTX();
+  annHistory.push(ctx.getImageData(0, 0, ANN_CANVAS().width, ANN_CANVAS().height));
+  if (annHistory.length > 30) annHistory.shift();
+  if (annTool === 'freehand') {
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  }
+}
+
+function annMove(e) {
+  if (!annDrawing) return;
+  const pos = annPos(e);
+  const ctx = ANN_CTX();
+  ctx.strokeStyle = annColor;
+  ctx.lineWidth   = annWidth;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+
+  if (annTool === 'freehand') {
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    annPath.push(pos);
+  } else {
+    // For line/arrow/box: restore last snapshot and redraw preview
+    const snap = annHistory[annHistory.length - 1];
+    if (snap) ctx.putImageData(snap, 0, 0);
+    drawAnnShape(ctx, annStart, pos, false);
+  }
+}
+
+function annUp(e) {
+  if (!annDrawing) return;
+  annDrawing = false;
+  const pos = annPos(e);
+  const ctx = ANN_CTX();
+  ctx.strokeStyle = annColor;
+  ctx.lineWidth   = annWidth;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  if (annTool !== 'freehand') {
+    const snap = annHistory[annHistory.length - 1];
+    if (snap) ctx.putImageData(snap, 0, 0);
+    drawAnnShape(ctx, annStart, pos, true);
+  }
+  if (annTool === 'freehand') ctx.closePath();
+}
+
+function drawAnnShape(ctx, from, to, final) {
+  ctx.strokeStyle = annColor;
+  ctx.lineWidth   = annWidth;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+
+  if (annTool === 'line') {
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+  } else if (annTool === 'arrow') {
+    drawArrow(ctx, from, to);
+  } else if (annTool === 'box') {
+    ctx.beginPath();
+    ctx.strokeRect(from.x, from.y, to.x - from.x, to.y - from.y);
+  }
+}
+
+function drawArrow(ctx, from, to) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  if (len < 2) return;
+  const angle = Math.atan2(dy, dx);
+  const headLen = Math.max(12, annWidth * 4);
+  const headAngle = Math.PI / 6;
+  const toX = to.x - (headLen * 0.5) * Math.cos(angle);
+  const toY = to.y - (headLen * 0.5) * Math.sin(angle);
+  ctx.lineCap = 'butt';
+  ctx.beginPath();
+  ctx.moveTo(from.x, from.y);
+  ctx.lineTo(toX, toY);
+  ctx.stroke();
+  ctx.fillStyle = annColor;
+  ctx.beginPath();
+  ctx.moveTo(to.x, to.y);
+  ctx.lineTo(to.x - headLen * Math.cos(angle - headAngle), to.y - headLen * Math.sin(angle - headAngle));
+  ctx.lineTo(to.x - headLen * Math.cos(angle + headAngle), to.y - headLen * Math.sin(angle + headAngle));
+  ctx.closePath();
+  ctx.fill();
+}
+
+function annUndo() {
+  if (!annHistory.length) return;
+  const snap = annHistory.pop();
+  const ctx = ANN_CTX();
+  ctx.putImageData(snap, 0, 0);
+  annDrawing = false;
+}
+
+function annClear() {
+  const c = ANN_CANVAS();
+  const ctx = ANN_CTX();
+  annHistory.push(ctx.getImageData(0, 0, c.width, c.height));
+  ctx.clearRect(0, 0, c.width, c.height);
+}
+
+function annResize() {
+  const c = ANN_CANVAS();
+  if (c.style.display === 'none') return;
+  // Save, resize, restore
+  const ctx = ANN_CTX();
+  const snap = ctx.getImageData(0, 0, c.width, c.height);
+  c.width  = window.innerWidth;
+  c.height = window.innerHeight;
+  ctx.putImageData(snap, 0, 0);
+}
+
+window.addEventListener('resize', annResize);
+
+function _highlightOverlay(idx) {
+  // Clear all focused states
+  document.querySelectorAll('.m-overlay').forEach(el => {
+    el.classList.remove('focused', 'focused-after-delete');
+  });
+  if (idx === null || idx === undefined) return;
+  setTimeout(() => {
+    const ov = document.querySelector(`.m-overlay[data-idx="${idx}"]`);
+    if (ov) ov.classList.add('focused');
+  }, 320);
+}
+
+function toggleMenu(e, idx) {
+  e.stopPropagation();
+  document.querySelectorAll('.measure-menu').forEach(m => m.classList.remove('open'));
+  const menu = document.getElementById(`menu-${idx}`);
+  if (!menu) return;
+
+  // Position the menu at the button location using fixed positioning
+  const btn = e.currentTarget;
+  const btnRect = btn.getBoundingClientRect();
+  menu.style.top  = (btnRect.bottom + 2) + 'px';
+  menu.style.left = Math.max(4, btnRect.right - 180) + 'px'; // align right edge roughly
+  menu.classList.toggle('open');
+}
+
+// Close menus when clicking outside
+document.addEventListener('click', (e) => {
+  if (e.button !== 0) return; // ignore non-left clicks
+  // Don't close cymbal menu if clicking inside it
+  if (!e.target.closest('#cymbalMenu')) closeCymbalMenu();
+  document.querySelectorAll('.measure-menu').forEach(m => m.classList.remove('open'));
+  document.querySelectorAll('.row-menu').forEach(m => m.classList.remove('open'));
+});
+
+// Also close menus on right-click outside
+document.addEventListener('contextmenu', (e) => {
+  if (!e.target.closest('#editGrid') && !e.target.closest('#cymbalMenu')) {
+    closeCymbalMenu();
+  }
+});
+
+function menuAction(action, idx) {
+  document.querySelectorAll('.measure-menu').forEach(m => m.classList.remove('open'));
+  const m = measures[idx];
+  switch(action) {
+    case 'edit':
+      openModal(idx);
+      break;
+    case 'focus':
+      enterFocusMode(idx);
+      break;
+    case 'copy':
+      copiedMeasure = JSON.parse(JSON.stringify(m));
+      break;
+    case 'paste':
+      if (copiedMeasure) {
+        const pasted = JSON.parse(JSON.stringify(copiedMeasure));
+        pasted.id = nextMeasureId++;
+        measures.splice(idx, 1, pasted);
+        renderScore();
+      }
+      break;
+    case 'duplicate':
+      const dup = JSON.parse(JSON.stringify(m));
+      dup.id = nextMeasureId++;
+      measures.splice(idx + 1, 0, dup);
+      renderScore();
+      break;
+    case 'addleft':
+      const newM = { id: nextMeasureId++, division: 16, data: emptyData(16) };
+      measures.splice(idx, 0, newM);
+      renderScore();
+      break;
+    case 'repeatleft':
+      m.repeatLeft = !m.repeatLeft;
+      renderFullScore();
+      break;
+    case 'repeatright':
+      m.repeatRight = !m.repeatRight;
+      renderFullScore();
+      break;
+    case 'delete':
+      measures.splice(idx, 1);
+      focusedIdx = measures.length > 0 ? Math.max(0, idx - 1) : null;
+      renderScore();
+      if (focusedIdx !== null) _highlightOverlay(focusedIdx);
+      break;
+  }
+}
+
+// Build note body for a step (no length suffix)
+function chordAt(m, step) {
+  // Include crash and ride explicitly since they're not in CORE_INSTS anymore
+  const allInsts = [...CORE_INSTS, ...TOM_INSTS, {id:'crash'}, {id:'ride'}];
+  const active = allInsts.filter(i => (m.data[i.id] || [])[step] > 0);
+  if (active.length === 0) return null;
+  const maxState = Math.max(...active.map(i => m.data[i.id][step]));
+  const acc   = maxState === 2 ? '!accent!' : '';
+  const ghost = maxState === 3 ? '!p!' : '';
+  const pitches = active.map(i => ABC_MAP[i.id].pitch);
+  const body = pitches.length === 1 ? pitches[0] : '[' + pitches.join('') + ']';
+  return `${acc}${ghost}${body}`;
+}
+
+function note(m, step, len) {
+  const ch = chordAt(m, step);
+  const lenStr = len === 1 ? '' : String(len);
+  return ch ? ch + lenStr : 'z' + lenStr;
+}
+
+function beatTokens16(m, beatStart) {
+  const s = beatStart;
+  const allInsts = [...CORE_INSTS, ...TOM_INSTS, {id:'crash'}, {id:'ride'}];
+  const b = [0,1,2,3].map(i => allInsts.some(inst => (m.data[inst.id] || [])[s+i] > 0));
+  const n = (sub, len) => note(m, s + sub, len);
+  const z = len => 'z' + (len === 1 ? '' : String(len));
+  const pat = (b[0]?8:0)|(b[1]?4:0)|(b[2]?2:0)|(b[3]?1:0);
+  switch(pat) {
+    case 0b0000: return [z(4)];
+    case 0b1000: return [n(0,4)];
+    case 0b0100: return [z(1), n(1,1), z(2)];
+    case 0b0010: return [z(2), n(2,2)];
+    case 0b0001: return [z(3), n(3,1)];
+    case 0b1100: return [n(0,1), n(1,1), z(2)];
+    case 0b1010: return [n(0,2), n(2,2)];
+    case 0b1001: return [n(0,3), n(3,1)];
+    case 0b0110: return [z(1), n(1,1), n(2,1), z(1)];
+    case 0b0101: return [z(1), n(1,1), z(1), n(3,1)];
+    case 0b0011: return [z(2), n(2,1), n(3,1)];
+    case 0b1110: return [n(0,1), n(1,1), n(2,2)];
+    case 0b0111: return [z(1), n(1,1), n(2,1), n(3,1)];
+    case 0b1011: return [n(0,2), n(2,1), n(3,1)];
+    case 0b1101: return [n(0,1), n(1,2), n(3,1)];
+    case 0b1111: return [n(0,1), n(1,1), n(2,1), n(3,1)];
+    default:     return [z(4)];
+  }
+}
+
+function beatTokens8(m, beatStart) {
+  // 2 steps per beat in 8th mode: step 0="1", step 1="&"
+  // All lengths relative to L:1/16, so quarter=4, 8th=2
+  const s = beatStart;
+  const allInsts = [...CORE_INSTS, ...TOM_INSTS, {id:'crash'}, {id:'ride'}];
+  const b = [0,1].map(i => allInsts.some(inst => (m.data[inst.id] || [])[s+i] > 0));
+  const n = (sub, len) => { const ch = chordAt(m, s+sub); const ls = len === 1 ? '' : String(len); return ch ? ch+ls : 'z'+ls; };
+  const z = len => 'z' + (len === 1 ? '' : String(len));
+  const pat = (b[0]?2:0)|(b[1]?1:0);
+  switch(pat) {
+    case 0b00: return [z(4)];          // quarter rest
+    case 0b10: return [n(0,4)];        // quarter note on "1"
+    case 0b01: return [z(2), n(1,2)];  // 8th rest + 8th note on "&"
+    case 0b11: return [n(0,2), n(1,2)];// 8th on "1" + 8th on "&"
+    default:   return [z(4)];
+  }
+}
+
+// Build the token string for one measure (no bar lines — caller adds | separators)
+function measureTokens(m) {
+  const steps = m.division;
+  let tokens = [];
+  if (m.division === 16) {
+    for (let beat = 0; beat < 4; beat++) {
+      tokens.push(...beatTokens16(m, beat * 4).filter(Boolean));
+      if (beat < 3) tokens.push(' ');
+    }
+  } else if (m.division === 8) {
+    // 2 steps per beat, 4 beats — use beatTokens8 for proper rhythm grouping
+    for (let beat = 0; beat < 4; beat++) {
+      tokens.push(...beatTokens8(m, beat * 2).filter(Boolean));
+      if (beat < 3) tokens.push(' ');
+    }
+  } else {
+    for (let s = 0; s < steps; s++) {
+      const ch = chordAt(m, s);
+      tokens.push((ch || 'z') + '/3');
+      if ((s + 1) % 3 === 0 && s < steps - 1) tokens.push(' ');
+    }
+  }
+  return tokens.join('');
+}
+
+function fullScoreABC() {
+  if (measures.length === 0) return null;
+  const bars = measures.map((m, i) => {
+    const left  = m.repeatLeft  ? '|:' : (i === 0 ? '' : '');
+    const right = m.repeatRight ? ':|' : '';
+    return left + measureTokens(m) + right;
+  }).join('|');
+  return [
+    'X:1',
+    'T:',
+    'M:4/4',
+    'L:1/16',
+    'K:C clef=perc',
+    'V:1 stem=up',
+    bars + '|]',
+  ].join('\n');
+}
+
+function rowABC(rowMeasures, globalOffset) {
+  if (!rowMeasures.length) return null;
+  const bars = rowMeasures.map((m, i) => {
+    const gi = globalOffset + i;
+    const left  = m.repeatLeft  ? '|:' : '';
+    const right = m.repeatRight ? ':|' : '';
+    return left + measureTokens(m) + right;
+  }).join('|');
+  return [
+    'X:1',
+    'T:',
+    'M:4/4',
+    'L:1/16',
+    'K:C clef=perc',
+    'V:1 stem=up',
+    bars + '|]',
+  ].join('\n');
+}
+
+function renderRowScore(row, rowMeasures) {
+  if (typeof ABCJS === 'undefined') { setTimeout(() => renderRowScore(row, rowMeasures), 100); return; }
+
+  const wrap = document.getElementById(`score-render-wrap-${row}`);
+  if (!wrap) return;
+
+  wrap.querySelectorAll('.m-overlay').forEach(el => el.remove());
+  if (!rowMeasures.length) return;
+
+  const globalOffset = row * MEASURES_PER_ROW;
+  const abc = rowABC(rowMeasures, globalOffset);
+  if (!abc) return;
+
+  const renderId = `full-score-render-${row}`;
+  let renderDiv = document.getElementById(renderId);
+  if (!renderDiv) {
+    renderDiv = document.createElement('div');
+    renderDiv.id = renderId;
+    wrap.appendChild(renderDiv);
+  }
+
+  // CSS visual scale per mode
+  // 1-per-row now uses same scale as 2-per-row, centered
+  const cssScaleMap = { 1: 2.2, 2: 1.35, 4: 1.0 };
+  const cssScale    = cssScaleMap[MEASURES_PER_ROW] ?? 1.0;
+  const glyphScale  = { 1: 1.4, 2: 1.2,  4: 1.1 };
+  const noteScale   = glyphScale[MEASURES_PER_ROW] ?? 1.1;
+
+  // For modes 1/2: render off-screen at a fixed staffwidth so we get a
+  // true fixed-width SVG with a proper viewBox (no responsive stretching).
+  // Then transplant the SVG into a centered scaleWrap and apply CSS scale.
+  // For mode 4: render directly responsive as before.
+
+  if (cssScale === 1.0) {
+    // ── 4-per-row: normal responsive render ──────────────────────────────
+    renderDiv.innerHTML = '';
+    renderDiv.style.cssText = '';
+    wrap.style.height = '';
+
+    const sw = Math.max(300, wrap.clientWidth - 40);
+    ABCJS.renderAbc(renderId, abc, {
+      responsive: 'resize',
+      staffwidth: sw, scale: noteScale,
+      paddingtop: 14, paddingbottom: 14, paddingright: 20, paddingleft: 20,
+      add_classes: true,
+    });
+    applyXNoteheads(renderId);
+    setTimeout(() => placeRowOverlays(row, rowMeasures, globalOffset), 260);
+
+  } else {
+    // ── 1/2-per-row: off-screen fixed render → centered + scaled ─────────
+    // Both 1 and 2-per-row use 0.75 fraction so staff is centered with whitespace
+    const swFrac = MEASURES_PER_ROW === 1 ? 0.55 : 0.75;
+    const sw = Math.round(Math.max(300, wrap.clientWidth * swFrac));
+
+    // 1. Create a hidden off-screen container
+    const offId = `__offscreen-${row}`;
+    let offDiv = document.getElementById(offId);
+    if (!offDiv) {
+      offDiv = document.createElement('div');
+      offDiv.id = offId;
+      document.body.appendChild(offDiv);
+    }
+    offDiv.style.cssText = 'position:fixed;left:-9999px;top:0;width:' + sw + 'px;visibility:hidden;';
+
+    // 2. Render without responsive — gives a fixed-width SVG + viewBox
+    ABCJS.renderAbc(offId, abc, {
+      staffwidth: sw, scale: noteScale,
+      paddingtop: 14, paddingbottom: 14, paddingright: 20, paddingleft: 20,
+      add_classes: true,
+    });
+
+    const svg = offDiv.querySelector('svg');
+    if (!svg) { offDiv.remove(); return; }
+
+    // 3. Read natural dimensions before any transform
+    const naturalW = parseFloat(svg.getAttribute('width'))  || sw + 40;
+    const naturalH = parseFloat(svg.getAttribute('height')) || 100;
+
+    // Center relative to viewport so measure is visually centered on screen
+    const effectiveWrapW = wrap.clientWidth || wrap.offsetWidth || window.innerWidth - 80;
+    const dynamicScale = MEASURES_PER_ROW === 1
+      ? Math.min(2.5, (effectiveWrapW * 0.90) / naturalW)
+      : cssScale;
+
+    const scaledW  = Math.ceil(naturalW * dynamicScale);
+    const scaledH  = Math.ceil(naturalH * dynamicScale);
+
+    // 4. Read natural dimensions (transform applied to scaleWrap, not SVG)
+    svg.style.display = 'block';
+    svg.style.pointerEvents = 'none';
+
+    // 5. Build centered scaleWrap — center relative to viewport for true visual centering
+    renderDiv.innerHTML = '';
+    renderDiv.style.cssText = `width:100%;position:relative;height:${scaledH}px;`;
+    wrap.style.height = scaledH + 'px';
+
+    // Account for the wrap's left offset from viewport edge
+    const wrapRect = wrap.getBoundingClientRect();
+    const viewportW = window.innerWidth;
+    const leftOffset = Math.max(0, Math.floor((viewportW - scaledW) / 2 - wrapRect.left));
+
+    const scaleWrap = document.createElement('div');
+    scaleWrap.className = 'score-scale-wrap';
+    scaleWrap.style.cssText = [
+      `position:absolute`,
+      `left:${leftOffset}px`,
+      `top:0`,
+      `width:${naturalW}px`,
+      `height:${naturalH}px`,
+      `transform-origin:top left`,
+      `transform:scale(${dynamicScale})`,
+      `overflow:visible`,
+    ].join(';');
+
+    scaleWrap.appendChild(svg);
+    renderDiv.appendChild(scaleWrap);
+    offDiv.remove();
+
+    applyXNoteheads(renderId);
+    setTimeout(() => placeRowOverlays(row, rowMeasures, globalOffset), 280);
+  }
+}
+
+function placeRowOverlays(row, rowMeasures, globalOffset) {
+  const wrap = document.getElementById(`score-render-wrap-${row}`);
+  const renderId = `full-score-render-${row}`;
+  const renderDiv = document.getElementById(renderId);
+  if (!wrap || !renderDiv) return;
+  wrap.querySelectorAll('.m-overlay').forEach(el => el.remove());
+
+  const svg = renderDiv.querySelector('svg');
+  if (!svg) return;
+
+  // abcjs without responsive mode sets width/height attrs but no viewBox.
+  // Construct a synthetic viewBox so the rest of the math works uniformly.
+  let vb = (svg.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number).filter(n => !isNaN(n));
+  if (vb.length < 4) {
+    const w = parseFloat(svg.getAttribute('width'))  || svg.getBoundingClientRect().width;
+    const h = parseFloat(svg.getAttribute('height')) || svg.getBoundingClientRect().height;
+    vb = [0, 0, w, h];
+  }
+  if (vb.length < 4) return;
+  const svgR  = svg.getBoundingClientRect();
+  const wrapR = wrap.getBoundingClientRect();
+  const scaleX = svgR.width  / vb[2];
+  const scaleY = svgR.height / vb[3];
+  const svgLeft = svgR.left - wrapR.left;
+  const svgTop  = svgR.top  - wrapR.top;
+
+  function pts(d) {
+    return [...d.matchAll(/[ML]\s*([\d.-]+)\s+([\d.-]+)/g)].map(m => ({x:+m[1], y:+m[2]}));
+  }
+
+  // Staff lines
+  const staffYsPx = [];
+  svg.querySelectorAll('path').forEach(p => {
+    const pp = pts(p.getAttribute('d') || '');
+    if (pp.length < 3) return;
+    const xs = pp.map(q=>q.x), ys = pp.map(q=>q.y);
+    const w = Math.max(...xs)-Math.min(...xs), h = Math.max(...ys)-Math.min(...ys);
+    if (w > 30 && h < 2) staffYsPx.push(Math.min(...ys) * scaleY + svgTop);
+  });
+  const uniqStaff = [...new Set(staffYsPx.map(y => Math.round(y*2)/2))].sort((a,b) => a-b);
+  if (uniqStaff.length < 5) return;
+  const staffTop    = uniqStaff[0] - 20;
+  const staffHeight = uniqStaff[uniqStaff.length-1] + 20 - staffTop;
+
+  // Barlines
+  const barlineXsPx = [];
+  svg.querySelectorAll('path').forEach(p => {
+    if (p.getAttribute('class') !== null) return;
+    const pp = pts(p.getAttribute('d') || '');
+    if (!pp.length) return;
+    const xs = pp.map(q=>q.x), ys = pp.map(q=>q.y);
+    const w = Math.max(...xs)-Math.min(...xs), h = Math.max(...ys)-Math.min(...ys);
+    if (w > 1 || h < 20) return;
+    barlineXsPx.push(Math.min(...xs) * scaleX + svgLeft);
+  });
+  const dedupedBarlines = [];
+  barlineXsPx.sort((a,b) => a-b).forEach(x => {
+    if (!dedupedBarlines.length || x - dedupedBarlines[dedupedBarlines.length-1] > 8)
+      dedupedBarlines.push(x);
+  });
+
+  // Left edge of measure 1 in this row
+  const stemXsPx = [...svg.querySelectorAll('path.abcjs-stem')].map(p => {
+    const xs = [...(p.getAttribute('d')||'').matchAll(/[ML]\s*([\d.-]+)/g)].map(m => +m[1]);
+    return Math.min(...xs) * scaleX + svgLeft;
+  }).sort((a,b) => a-b);
+  const firstNoteX = stemXsPx.length ? stemXsPx[0] - 12 : 60;
+
+  const boundaries = [firstNoteX, ...dedupedBarlines];
+  const mCount = Math.min(rowMeasures.length, boundaries.length - 1);
+
+  svg.style.pointerEvents = 'none';
+  renderDiv.style.pointerEvents = 'none';
+
+  for (let i = 0; i < mCount; i++) {
+    const idx = globalOffset + i;
+    const left = boundaries[i], right = boundaries[i+1];
+    if (right <= left) continue;
+    const overlay = document.createElement('div');
+    overlay.className = 'm-overlay' + (editingIdx === idx ? ' selected' : '');
+    overlay.dataset.idx = idx;
+    overlay.style.cssText = `left:${left}px;top:${staffTop}px;width:${right-left}px;height:${staffHeight}px;z-index:2;`;
+    overlay.onclick = (e) => {
+      if (e.target.closest('.measure-menu-btn') || e.target.closest('.measure-menu')) return;
+      openModal(idx);
+    };
+    overlay.addEventListener('mouseenter', () => {
+      focusedIdx = idx;
+      // Transfer focused highlight to this overlay
+      document.querySelectorAll('.m-overlay').forEach(el => el.classList.remove('focused'));
+    });
+    overlay.addEventListener('mouseleave', () => { if (focusedIdx === idx && editingIdx === null) focusedIdx = idx; });
+    overlay.innerHTML = `
+      <button class="measure-menu-btn" onclick="toggleMenu(event,${idx})" title="Options">⋯</button>
+      <span class="measure-num-label">${idx+1}</span>
+      <div class="measure-menu" id="menu-${idx}">
+        <button onclick="menuAction('edit',${idx})">✏️ Edit</button>
+        <button onclick="menuAction('focus',${idx})">⛶ Focus</button>
+        <button onclick="menuAction('copy',${idx})">📋 Copy</button>
+        <button onclick="menuAction('paste',${idx})">📌 Paste</button>
+        <button onclick="menuAction('duplicate',${idx})">⧉ Duplicate</button>
+        <button onclick="menuAction('addleft',${idx})">← Add left</button>
+        <button onclick="menuAction('repeatleft',${idx})">𝄆 Repeat left</button>
+        <button onclick="menuAction('repeatright',${idx})">𝄇 Repeat right</button>
+        <hr style="border:none;border-top:1px solid var(--border);margin:2px 0;">
+        <button onclick="menuAction('delete',${idx})" style="color:var(--red);">🗑 Delete</button>
+      </div>
+    `;
+    wrap.appendChild(overlay);
+  }
+}
+
+function renderFullScore() { renderScore(); }
+function drawPreview()  { renderScore(); }
+
+function openModal(idx) {
+  stopPlay();
+  editingIdx = idx;
+  const m = measures[idx];
+  // Ensure crash/ride arrays exist (for measures created before this feature)
+  if (!m.data.crash) m.data.crash = new Array(m.division).fill(0);
+  if (!m.data.ride)  m.data.ride  = new Array(m.division).fill(0);
+  division = m.division;
+  document.getElementById('divSelect').value = division;
+  // Sync modal BPM from global BPM
+  bpm = globalBpm;
+  document.getElementById('bpmSlider').value = bpm;
+  document.getElementById('bpmNum').textContent = bpm;
+  document.getElementById('modalTitle').textContent = `Edit Measure ${idx + 1}`;
+  document.getElementById('modalOverlay').classList.add('open');
+  // Add bottom padding to main so score isn't hidden under modal
+  const modal = document.getElementById('modal');
+  document.querySelector('.main').style.paddingBottom = (modal.offsetHeight + 24) + 'px';
+  renderGrid();
+  renderScore();
+}
+
+function closeModal() {
+  stopPlay(); // stop modal play only
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.querySelector('.main').style.paddingBottom = '60px';
+  editingIdx = null;
+  renderScore();
+}
+
+function saveClose() { closeModal(); }
+
+function overlayClick(e) {
+  // Modal is now a bottom panel — close only via X button or Save & Close
+}
+
+// ── GRID ──────────────────────────────────────────────────────────────────
+function renderGrid() {
+  const m = measures[editingIdx];
+  if (!m) return;
+  const insts = getInsts();
+  const steps = m.division;
+  const spb = m.division / 4;
+
+  let html = '<thead><tr><th style="background:var(--paper2);border-right:2px solid var(--border);min-width:60px;"></th>';
+  for (let s = 0; s < steps; s++) {
+    const beatIdx = Math.floor(s / spb);
+    const sub = s % spb;
+    const isBeat = sub === 0;
+    const isBar = s === 0;
+    let label = '';
+    if (isBeat) label = beatIdx + 1;
+    else if (division === 16) label = ['e','&','a'][sub-1] || '';
+    else if (division === 8) label = '&';
+    else label = sub === 2 ? '3' : '';
+    const cls = isBar ? 'mbar beat-th' : isBeat ? 'beat-th' : '';
+    html += `<th class="${cls}">${label}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+
+  insts.forEach(inst => {
+    const isHH = inst.id === 'hihat';
+    // HH row label gets special right-click menu
+    const labelTitle = isHH ? 'Right-click for cymbal options' : 'Right-click to fill';
+    const labelExtra = isHH ? ' data-cymbal-label="1"' : '';
+    html += `<tr><td class="row-label${isHH ? ' hh-label' : ''}" data-inst="${inst.id}" title="${labelTitle}"${labelExtra}>${inst.label}</td>`;
+
+    for (let s = 0; s < steps; s++) {
+      const sub = s % spb;
+      const isBeat = sub === 0 && s > 0;
+      const cls = isBeat ? 'ecell beat-div' : 'ecell';
+
+      if (isHH) {
+        // Merged cymbal cell: crash > ride > hihat priority, colored accordingly
+        const hhState    = m.data.hihat  ? m.data.hihat[s]  : 0;
+        const crashState = m.data.crash  ? m.data.crash[s]  : 0;
+        const rideState  = m.data.ride   ? m.data.ride[s]   : 0;
+        const cymbType = crashState > 0 ? 'crash' : rideState > 0 ? 'ride' : 'hh';
+        const state    = crashState > 0 ? crashState : rideState > 0 ? rideState : hhState;
+        const ndCls = getCymbalNdClass(state, cymbType);
+        html += `<td class="${cls}" data-inst="hihat" data-step="${s}" data-cymbal="1">
+          <div class="nd xhead ${ndCls}" id="nd-hihat-${s}"></div>
+        </td>`;
+      } else {
+        const state = m.data[inst.id] ? m.data[inst.id][s] : 0;
+        const ndCls = getNdClass(state, inst.isX);
+        html += `<td class="${cls}" data-inst="${inst.id}" data-step="${s}">
+          <div class="nd ${ndCls}" id="nd-${inst.id}-${s}"></div>
+        </td>`;
+      }
+    }
+    html += '</tr>';
+  });
+  html += '</tbody>';
+
+  const tbl = document.getElementById('editGrid');
+  tbl.innerHTML = html;
+  tbl.onclick = onCellClick;
+  tbl.oncontextmenu = onLabelOrCellRight;
+}
+
+// Returns nd classes for a cymbal cell
+function getCymbalNdClass(state, cymbType) {
+  if (state === 0) return '';
+  const colorCls = cymbType === 'crash' ? 'crash' : cymbType === 'ride' ? 'ride' : '';
+  if (state === 2) return `acc ${colorCls}`;
+  if (state === 3) return `ghost`;
+  return `on ${colorCls}`;
+}
+
+function getNdClass(state, isX) {
+  const x = isX ? 'xhead' : '';
+  if (state === 0) return x;
+  if (state === 1) return `on ${x}`;
+  if (state === 2) return `acc ${x}`;
+  if (state === 3) return `ghost ${x}`;
+  return x;
+}
+
+function updateNd(inst, step) {
+  const m = measures[editingIdx];
+  if (!m) return;
+  const instObj = getInsts().find(i => i.id === inst);
+  const el = document.getElementById(`nd-${inst}-${step}`);
+  if (!el) return;
+  el.className = 'nd ' + getNdClass(m.data[inst][step], instObj ? instObj.isX : false);
+}
+
+function onCellClick(e) {
+  const cell = e.target.closest('[data-inst]');
+  if (!cell) return;
+  const inst = cell.dataset.inst;
+  const step = parseInt(cell.dataset.step);
+  const m = measures[editingIdx];
+
+  if (cell.dataset.cymbal) {
+    // Cymbal cell: toggle whichever cymbal is currently active at this step
+    // Priority: crash > ride > hihat
+    const cs = m.data.crash[step], rs = m.data.ride[step], hs = m.data.hihat[step];
+    if (cs > 0) {
+      m.data.crash[step] = 0;
+    } else if (rs > 0) {
+      m.data.ride[step] = 0;
+    } else if (hs > 0) {
+      m.data.hihat[step] = 0;
+    } else {
+      // Nothing active — toggle hihat on
+      m.data.hihat[step] = 1;
+    }
+    refreshCymbalCell(m, step);
+  } else {
+    m.data[inst][step] = m.data[inst][step] === 0 ? 1 : 0;
+    updateNd(inst, step);
+  }
+  drawPreview(m);
+}
+
+function refreshCymbalCell(m, step) {
+  const el = document.getElementById(`nd-hihat-${step}`);
+  if (!el) return;
+  const hhState    = m.data.hihat[step]  || 0;
+  const crashState = m.data.crash[step]  || 0;
+  const rideState  = m.data.ride[step]   || 0;
+  const cymbType = crashState > 0 ? 'crash' : rideState > 0 ? 'ride' : 'hh';
+  const state    = crashState > 0 ? crashState : rideState > 0 ? rideState : hhState;
+  el.className = 'nd xhead ' + getCymbalNdClass(state, cymbType);
+}
+
+function onLabelOrCellRight(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const m = measures[editingIdx];
+
+  // Right-click on HH label → cymbal "Add all" menu
+  const label = e.target.closest('td.row-label');
+  if (label) {
+    const inst = label.dataset.inst;
+    if (!inst) return;
+
+    if (inst === 'hihat') {
+      showCymbalLabelMenu(e, m);
+    } else {
+      // Non-cymbal label: original fill-every-other-step behaviour
+      const steps = m.division;
+      const stride = m.division === 16 ? 2 : 1;
+      const alreadyFilled = [0,stride,stride*2,stride*3,stride*4,stride*5,stride*6,stride*7]
+        .filter(s => s < steps).every(s => m.data[inst][s] > 0);
+      for (let s = 0; s < steps; s++) {
+        m.data[inst][s] = (!alreadyFilled && s % stride === 0) ? 1 : 0;
+      }
+      renderGrid(); drawPreview(m);
+    }
+    return;
+  }
+
+  // Right-click on cymbal cell → set cymbal type menu
+  const cell = e.target.closest('[data-cymbal]');
+  if (cell) {
+    const step = parseInt(cell.dataset.step);
+    showCymbalCellMenu(e, m, step);
+    return;
+  }
+
+  // Right-click on regular cell → cycle accent/ghost
+  const rcell = e.target.closest('[data-inst][data-step]');
+  if (!rcell) return;
+  const inst = rcell.dataset.inst;
+  const step = parseInt(rcell.dataset.step);
+  const cur = m.data[inst][step];
+  m.data[inst][step] = cur === 0 ? 1 : cur === 1 ? 2 : cur === 2 ? 3 : 0;
+  updateNd(inst, step);
+  drawPreview(m);
+}
+
+function showCymbalLabelMenu(e, m) {
+  const menu = document.getElementById('cymbalMenu');
+  const steps = m.division;
+  const stride = m.division === 16 ? 2 : 1;
+
+  menu.innerHTML = `
+    <button onclick="setCymbalAll('hihat')"><span class="cymbal-swatch hh"></span>Add all Hi-Hat</button>
+    <button onclick="setCymbalAll('crash')"><span class="cymbal-swatch crash"></span>Add all Crash</button>
+    <button onclick="setCymbalAll('ride')"><span class="cymbal-swatch ride"></span>Add all Ride</button>
+    <hr style="border:none;border-top:1px solid var(--border);margin:4px 0;">
+    <button onclick="clearAllCymbals()">Clear all cymbals</button>
+  `;
+  positionAndOpenMenu(menu, e.clientX, e.clientY);
+}
+
+function showCymbalCellMenu(e, m, step) {
+  const menu = document.getElementById('cymbalMenu');
+  const hhOn = m.data.hihat[step] > 0;
+  const crOn = m.data.crash[step] > 0;
+  const riOn = m.data.ride[step]  > 0;
+  const anyOn = hhOn || crOn || riOn;
+
+  menu.innerHTML = `
+    <button onclick="setCymbalStep(${step},'hihat')"><span class="cymbal-swatch hh"></span>Hi-Hat${hhOn && !crOn && !riOn ? ' ✓' : ''}</button>
+    <button onclick="setCymbalStep(${step},'crash')"><span class="cymbal-swatch crash"></span>Crash${crOn ? ' ✓' : ''}</button>
+    <button onclick="setCymbalStep(${step},'ride')"><span class="cymbal-swatch ride"></span>Ride${riOn ? ' ✓' : ''}</button>
+    ${anyOn ? `<hr style="border:none;border-top:1px solid var(--border);margin:4px 0;"><button onclick="setCymbalStep(${step},'off')">Clear</button>` : ''}
+  `;
+  positionAndOpenMenu(menu, e.clientX, e.clientY);
+}
+
+function positionAndOpenMenu(menu, x, y) {
+  closeCymbalMenu();
+  menu.style.left = Math.min(x, window.innerWidth - 180) + 'px';
+  menu.style.top  = Math.min(y, window.innerHeight - 160) + 'px';
+  menu.classList.add('open');
+}
+
+function closeCymbalMenu() {
+  document.getElementById('cymbalMenu').classList.remove('open');
+}
+
+function setCymbalStep(step, type) {
+  closeCymbalMenu();
+  const m = measures[editingIdx];
+  if (!m) return;
+  // Clear all cymbal types at this step
+  m.data.hihat[step] = 0;
+  m.data.crash[step] = 0;
+  m.data.ride[step]  = 0;
+  if (type !== 'off') m.data[type][step] = 1;
+  refreshCymbalCell(m, step);
+  drawPreview(m);
+}
+
+function setCymbalAll(type) {
+  closeCymbalMenu();
+  const m = measures[editingIdx];
+  if (!m) return;
+  const steps = m.division;
+  const stride = m.division === 16 ? 2 : 1;
+  // Clear all cymbals first
+  for (let s = 0; s < steps; s++) {
+    m.data.hihat[s] = 0;
+    m.data.crash[s] = 0;
+    m.data.ride[s]  = 0;
+  }
+  // Fill every 8th note position with the chosen cymbal
+  for (let s = 0; s < steps; s += stride) {
+    m.data[type][s] = 1;
+  }
+  renderGrid();
+  drawPreview(m);
+}
+
+function clearAllCymbals() {
+  closeCymbalMenu();
+  const m = measures[editingIdx];
+  if (!m) return;
+  const steps = m.division;
+  for (let s = 0; s < steps; s++) {
+    m.data.hihat[s] = 0;
+    m.data.crash[s] = 0;
+    m.data.ride[s]  = 0;
+  }
+  renderGrid();
+  drawPreview(m);
+}
+
+function setDivision(v) {
+  const newDiv = parseInt(v);
+  const m = measures[editingIdx];
+  if (!m) return;
+  const oldDiv = m.division;
+
+  // Include crash and ride (not in CORE_INSTS but tracked in data)
+  const allInstIds = [...CORE_INSTS, ...TOM_INSTS].map(i => i.id).concat(['crash', 'ride']);
+  allInstIds.forEach(instId => {
+    const old = m.data[instId] || [];
+
+    if (oldDiv === 16 && newDiv === 8) {
+      m.data[instId] = Array.from({ length: 8 }, (_, i) => old[i * 2] || 0);
+    } else if (oldDiv === 8 && newDiv === 16) {
+      const expanded = new Array(16).fill(0);
+      old.forEach((val, i) => { expanded[i * 2] = val; });
+      m.data[instId] = expanded;
+    } else {
+      m.data[instId] = Array.from({ length: newDiv }, (_, i) => old[i] || 0);
+    }
+  });
+
+  division = newDiv;
+  m.division = newDiv;
+  renderGrid();
+  drawPreview(m);
+}
+
+function toggleToms() {
+  showToms = !showToms;
+  const btn = document.getElementById('tomToggle');
+  btn.textContent = showToms ? 'Hide Toms' : 'Show Toms';
+  btn.classList.toggle('active', showToms);
+  renderGrid();
+}
+
+function clearMeasure() {
+  const m = measures[editingIdx];
+  if (!m) return;
+  [...CORE_INSTS, ...TOM_INSTS].forEach(inst => {
+    m.data[inst.id] = new Array(m.division).fill(0);
+  });
+  renderGrid();
+  drawPreview(m);
+}
+
+// ── AUDIO ────────────────────────────────────────────────────────────────
+function getCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function stepDur() { return 60 / bpm / (division / 4); }
+
+// Map instrument id → audio filename (without extension)
+const SAMPLE_MAP = {
+  kick:    'kick',
+  snare:   'snare',
+  hihat:   'hh',
+  hihatft: 'hh',
+  tom1:    'tom1',
+  tom2:    'tom2',
+  floor:   'tom3',
+  crash:   'crash',
+  ride:    'ride',
+};
+
+// Pre-loaded AudioBuffers
+const _sampleBuffers = {};
+let _samplesLoaded = false;
+
+async function loadSamples() {
+  const ctx = getCtx();
+  const exts = ['wav', 'mp3', 'ogg'];
+  const names = [...new Set(Object.values(SAMPLE_MAP))];
+
+  await Promise.all(names.map(async name => {
+    for (const ext of exts) {
+      try {
+        const res = await fetch(`audio/${name}.${ext}`);
+        if (!res.ok) continue;
+        const buf = await res.arrayBuffer();
+        _sampleBuffers[name] = await ctx.decodeAudioData(buf);
+        return; // loaded successfully
+      } catch(e) { /* try next ext */ }
+    }
+    // No file found — will fall back to synthesis for this drum
+  }));
+  _samplesLoaded = true;
+}
+
+// Kick off loading as soon as the page is ready
+window.addEventListener('load', () => {
+  // Defer until first user interaction to satisfy autoplay policy
+  const initAudio = () => {
+    getCtx();
+    loadSamples();
+    window.removeEventListener('click', initAudio);
+    window.removeEventListener('keydown', initAudio);
+  };
+  window.addEventListener('click', initAudio, { once: true });
+  window.addEventListener('keydown', initAudio, { once: true });
+});
+
+function playDrum(id, state, when) {
+  const ctx = getCtx();
+  const gm = state === 2 ? 1.5 : state === 3 ? 0.35 : 1.0;
+
+  const sampleName = SAMPLE_MAP[id];
+  if (sampleName && _sampleBuffers[sampleName]) {
+    const src = ctx.createBufferSource();
+    src.buffer = _sampleBuffers[sampleName];
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(gm, when);
+    src.connect(g);
+    g.connect(ctx.destination);
+    src.start(when);
+    return;
+  }
+
+  // ── Synthesis fallback (used if sample file not found) ──────────────────
+  const DCFG = {
+    crash:   { type: 'noise', decay: 0.9,  freq: 6000, gain: 0.28 },
+    hihat:   { type: 'noise', decay: 0.07, freq: 8500, gain: 0.22 },
+    ride:    { type: 'noise', decay: 0.45, freq: 5500, gain: 0.22 },
+    snare:   { type: 'snare', decay: 0.15, gain: 0.48 },
+    tom1:    { type: 'tom',   freq: 210,   decay: 0.28, gain: 0.46 },
+    tom2:    { type: 'tom',   freq: 165,   decay: 0.3,  gain: 0.46 },
+    floor:   { type: 'tom',   freq: 105,   decay: 0.38, gain: 0.46 },
+    kick:    { type: 'kick',  gain: 0.68 },
+    hihatft: { type: 'noise', decay: 0.045,freq: 9000,  gain: 0.13 },
+  };
+  const cfg = DCFG[id]; if (!cfg) return;
+  const dm = (id === 'hihat' && state === 4) ? 5 : 1;
+
+  if (cfg.type === 'kick') {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.setValueAtTime(150, when);
+    o.frequency.exponentialRampToValueAtTime(42, when + 0.1);
+    g.gain.setValueAtTime(cfg.gain * gm, when);
+    g.gain.exponentialRampToValueAtTime(0.001, when + 0.32);
+    o.start(when); o.stop(when + 0.35);
+  } else if (cfg.type === 'snare') {
+    const len = ctx.sampleRate * 0.2;
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const filt = ctx.createBiquadFilter();
+    filt.type = 'bandpass'; filt.frequency.value = 3200; filt.Q.value = 0.8;
+    const g = ctx.createGain();
+    src.connect(filt); filt.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(cfg.gain * gm, when);
+    g.gain.exponentialRampToValueAtTime(0.001, when + 0.14);
+    src.start(when); src.stop(when + 0.18);
+    const o = ctx.createOscillator(), g2 = ctx.createGain();
+    o.connect(g2); g2.connect(ctx.destination);
+    o.frequency.value = 185;
+    g2.gain.setValueAtTime(0.28 * gm, when);
+    g2.gain.exponentialRampToValueAtTime(0.001, when + 0.07);
+    o.start(when); o.stop(when + 0.09);
+  } else if (cfg.type === 'noise') {
+    const decay = cfg.decay * dm;
+    const len = Math.max(1, Math.floor(ctx.sampleRate * decay));
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const filt = ctx.createBiquadFilter();
+    filt.type = 'highpass'; filt.frequency.value = cfg.freq;
+    const g = ctx.createGain();
+    src.connect(filt); filt.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(cfg.gain * gm, when);
+    g.gain.exponentialRampToValueAtTime(0.001, when + decay);
+    src.start(when); src.stop(when + decay);
+  } else if (cfg.type === 'tom') {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.setValueAtTime(cfg.freq, when);
+    o.frequency.exponentialRampToValueAtTime(cfg.freq * 0.48, when + cfg.decay);
+    g.gain.setValueAtTime(cfg.gain * gm, when);
+    g.gain.exponentialRampToValueAtTime(0.001, when + cfg.decay);
+    o.start(when); o.stop(when + cfg.decay + 0.02);
+  }
+}
+
+function scheduler() {
+  const ctx = getCtx();
+  const m = measures[editingIdx];
+  if (!m) return;
+  while (nextStepTime < ctx.currentTime + 0.12) {
+    const step = schedStep % m.division;
+    [...CORE_INSTS, ...TOM_INSTS].forEach(inst => {
+      const state = m.data[inst.id][step];
+      if (state > 0) playDrum(inst.id, state, nextStepTime);
+    });
+    const capStep = step;
+    const fireAt = (nextStepTime - ctx.currentTime) * 1000;
+    setTimeout(() => { if (playing) highlightStep(capStep); }, Math.max(0, fireAt));
+    nextStepTime += stepDur();
+    schedStep++;
+  }
+}
+
+function highlightStep(step) {
+  const insts = getInsts();
+  if (litStep >= 0) {
+    insts.forEach(inst => {
+      const el = document.getElementById(`nd-${inst.id}-${litStep}`);
+      if (el) el.classList.remove('lit');
+    });
+  }
+  insts.forEach(inst => {
+    const el = document.getElementById(`nd-${inst.id}-${step}`);
+    if (el) el.classList.add('lit');
+  });
+  litStep = step;
+}
+
+function startPlay() {
+  const ctx = getCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+  schedStep = 0;
+  nextStepTime = ctx.currentTime + 0.007;
+  scheduler(); // fire immediately so beat 1 never gets skipped
+  schedulerTimer = setInterval(scheduler, 25);
+  playing = true;
+  const btn = document.getElementById('playBtn');
+  btn.textContent = '■ Stop';
+  btn.classList.add('active');
+}
+
+function stopPlay() {
+  clearInterval(schedulerTimer);
+  playing = false;
+  if (litStep >= 0) {
+    getInsts().forEach(inst => {
+      const el = document.getElementById(`nd-${inst.id}-${litStep}`);
+      if (el) el.classList.remove('lit');
+    });
+    litStep = -1;
+  }
+  const btn = document.getElementById('playBtn');
+  if (btn) { btn.textContent = '▶ Play'; btn.classList.remove('active'); }
+}
+
+function togglePlay() { playing ? stopPlay() : startPlay(); }
+
+function setBpm(v) {
+  bpm = parseInt(v);
+  document.getElementById('bpmNum').textContent = bpm;
+  if (playing) { stopPlay(); startPlay(); }
+}
+
+// ── GLOBAL BPM (shared between modal play and full play) ──────────────────
+let globalBpm = 80;
+
+function setGlobalBpm(v) {
+  if (isNaN(v) || v < 40 || v > 240) return;
+  globalBpm = v;
+  bpm = v; // keep modal bpm in sync
+  const el = document.getElementById('globalBpm');
+  if (el && +el.value !== v) el.value = v;
+  const bpmNum = document.getElementById('bpmNum');
+  if (bpmNum) bpmNum.textContent = v;
+  const bpmSlider = document.getElementById('bpmSlider');
+  if (bpmSlider) bpmSlider.value = v;
+  if (fullPlaying) { stopFullPlay(); startFullPlay(); }
+}
+
+// ── FULL SCORE PLAYBACK ───────────────────────────────────────────────────
+let fullPlaying       = false;
+let fullSchedTimer    = null;
+let fullNextStepTime  = 0;
+let fullMeasureIdx    = 0;   // which measure we're currently playing
+let fullStepInMeasure = 0;   // step within that measure
+let fullLitMeasure    = -1;  // measure index currently highlighted green
+
+function toggleFullPlay() {
+  fullPlaying ? stopFullPlay() : startFullPlay();
+}
+
+function startFullPlay() {
+  if (!measures.length) return;
+  const ctx = getCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+  fullMeasureIdx    = 0;
+  fullStepInMeasure = 0;
+  fullNextStepTime  = ctx.currentTime + 0.007;
+  fullPlaying       = true;
+  fullScheduler(); // fire immediately so beat 1 never gets skipped
+  fullSchedTimer    = setInterval(fullScheduler, 25);
+  const btn = document.getElementById('globalPlayBtn');
+  if (btn) { btn.textContent = '■ Stop'; btn.classList.add('active'); }
+  highlightFullMeasure(0);
+}
+
+function stopFullPlay() {
+  clearInterval(fullSchedTimer);
+  fullPlaying = false;
+  clearFullMeasureHighlight();
+  const btn = document.getElementById('globalPlayBtn');
+  if (btn) { btn.textContent = '▶ Play All'; btn.classList.remove('active'); }
+}
+
+function fullScheduler() {
+  const ctx = getCtx();
+  // Schedule ahead 120ms
+  while (fullNextStepTime < ctx.currentTime + 0.12) {
+    if (!measures.length) { stopFullPlay(); return; }
+
+    const m = measures[fullMeasureIdx];
+    const step = fullStepInMeasure;
+    const mDiv = m.division;
+
+    // Play all instruments at this step
+    const allIds = [...CORE_INSTS, ...TOM_INSTS].map(i => i.id).concat(['crash','ride']);
+    allIds.forEach(id => {
+      const state = (m.data[id] || [])[step];
+      if (state > 0) playDrum(id, state, fullNextStepTime);
+    });
+
+    // Calculate step duration using this measure's division
+    const stepSec = 60 / globalBpm / (mDiv / 4);
+    fullNextStepTime += stepSec;
+    fullStepInMeasure++;
+
+    // Advance to next measure when current one ends
+    if (fullStepInMeasure >= mDiv) {
+      fullStepInMeasure = 0;
+      const prevMeasure = fullMeasureIdx;
+      fullMeasureIdx++;
+
+      if (fullMeasureIdx >= measures.length) {
+        // Loop back to start
+        fullMeasureIdx = 0;
+        const capIdx = 0;
+        const measureStartMs = (fullNextStepTime - ctx.currentTime) * 1000;
+        setTimeout(() => {
+          if (fullPlaying) highlightFullMeasure(capIdx);
+        }, Math.max(0, measureStartMs));
+      }
+
+      // Schedule the measure highlight switch at the right time
+      const switchMs = (fullNextStepTime - stepSec * mDiv - ctx.currentTime) * 1000
+                       + (stepSec * mDiv * 1000); // fire at start of next measure
+      const capIdx = fullMeasureIdx;
+      const fireMs = (fullNextStepTime - ctx.currentTime) * 1000 - stepSec * 1000;
+      // Simpler: fire at exactly when the first step of the new measure plays
+      const measureStartMs = (fullNextStepTime - ctx.currentTime) * 1000;
+      setTimeout(() => {
+        if (fullPlaying) highlightFullMeasure(capIdx);
+      }, Math.max(0, measureStartMs));
+    }
+  }
+}
+
+function highlightFullMeasure(idx) {
+  clearFullMeasureHighlight();
+  fullLitMeasure = idx;
+  // Find the overlay with data-idx matching this measure
+  const ov = document.querySelector(`.m-overlay[data-idx="${idx}"]`);
+  if (ov) ov.classList.add('playing-measure');
+  // Scroll into view if needed
+  if (ov) ov.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function clearFullMeasureHighlight() {
+  if (fullLitMeasure >= 0) {
+    const ov = document.querySelector(`.m-overlay[data-idx="${fullLitMeasure}"]`);
+    if (ov) ov.classList.remove('playing-measure');
+    fullLitMeasure = -1;
+  }
+  // Also clear any stale highlights
+  document.querySelectorAll('.m-overlay.playing-measure')
+    .forEach(el => el.classList.remove('playing-measure'));
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+// Pre-populate with 1 default measure
+measures = [
+  { id: nextMeasureId++, division: 16, data: defaultBeatData(16) },
+];
+renderScore();
+
+// Re-render overlays on window resize (handles browser zoom)
+let _resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(renderScore, 150);
+});
+
+// ── KEYBOARD SHORTCUTS ────────────────────────────────────────────────────
+// focusedIdx = last measure hovered or currently editing
+let focusedIdx = null;
+
+document.addEventListener('keydown', e => {
+  // Arrow keys — step through measures in focus mode
+  if (focusMode && !document.getElementById('modalOverlay').classList.contains('open')) {
+    if (e.key === 'ArrowLeft')  { focusStep(-1); e.preventDefault(); return; }
+    if (e.key === 'ArrowRight') { focusStep(+1); e.preventDefault(); return; }
+  }
+
+  const meta = e.metaKey || e.ctrlKey;
+
+  // Cmd/Ctrl+C — copy focused measure
+  if (meta && e.key === 'c' && !e.shiftKey) {
+    const idx = editingIdx ?? focusedIdx;
+    if (idx !== null && measures[idx]) {
+      copiedMeasure = JSON.parse(JSON.stringify(measures[idx]));
+      e.preventDefault();
+    }
+    return;
+  }
+
+  // Cmd/Ctrl+V — paste onto focused measure
+  if (meta && e.key === 'v' && !e.shiftKey) {
+    const idx = editingIdx ?? focusedIdx;
+    if (idx !== null && copiedMeasure && measures[idx]) {
+      const pasted = JSON.parse(JSON.stringify(copiedMeasure));
+      pasted.id = nextMeasureId++;
+      measures.splice(idx, 1, pasted);
+      if (editingIdx !== null) {
+        editingIdx = idx;
+        const m = measures[idx];
+        division = m.division;
+        document.getElementById('divSelect').value = division;
+        document.getElementById('modalTitle').textContent = `Edit Measure ${idx + 1}`;
+        renderGrid();
+      }
+      renderScore();
+      e.preventDefault();
+    }
+    return;
+  }
+
+  // Cmd/Ctrl+D — duplicate focused measure
+  if (meta && e.key === 'd' && !e.shiftKey) {
+    const idx = editingIdx ?? focusedIdx;
+    if (idx !== null && measures[idx]) {
+      const dup = JSON.parse(JSON.stringify(measures[idx]));
+      dup.id = nextMeasureId++;
+      measures.splice(idx + 1, 0, dup);
+      renderScore();
+      e.preventDefault();
+    }
+    return;
+  }
+
+  // Delete / Backspace — delete focused measure (not when typing in an input)
+  if ((e.key === 'Delete' || e.key === 'Backspace') && !meta) {
+    if (document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
+    const idx = editingIdx ?? focusedIdx;
+    if (idx !== null && measures[idx]) {
+      measures.splice(idx, 1);
+      const newFocus = measures.length > 0 ? Math.max(0, idx - 1) : null;
+      focusedIdx = newFocus;
+      if (editingIdx !== null) closeModal();
+      else {
+        renderScore();
+        _highlightOverlay(focusedIdx);
+      }
+      e.preventDefault();
+    }
+    return;
+  }
+
+  // Escape — close modal or exit focus mode
+  if (e.key === 'Escape') {
+    if (document.getElementById('modalOverlay').classList.contains('open')) closeModal();
+    else if (focusMode) exitFocusMode();
+  }
+});
+
+// ── SAVE / LOAD ───────────────────────────────────────────────────────────
+const STORAGE_KEY = 'drumArranger_saved';
+function getSaved() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; } }
+function putSaved(list) { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); }
+
+function openSaveDialog() {
+  closeLoadPanel();
+  document.getElementById('saveNameInput').value = document.getElementById('arrangementTitle').value.trim();
+  document.getElementById('saveDialog').classList.add('open');
+  setTimeout(() => { document.getElementById('saveNameInput').focus(); document.getElementById('saveNameInput').select(); }, 50);
+}
+function closeSaveDialog() { document.getElementById('saveDialog').classList.remove('open'); }
+function saveDialogBackdropClick(e) { if (e.target === document.getElementById('saveDialog')) closeSaveDialog(); }
+function saveDialogKey(e) { if (e.key === 'Enter') confirmSave(); if (e.key === 'Escape') closeSaveDialog(); }
+function confirmSave() {
+  const name = document.getElementById('saveNameInput').value.trim();
+  if (!name) { document.getElementById('saveNameInput').focus(); return; }
+  const saved = getSaved();
+  const entry = { name, savedAt: Date.now(), title: document.getElementById('arrangementTitle').value.trim(), bpm: globalBpm, measuresPerRow: MEASURES_PER_ROW, measures: JSON.parse(JSON.stringify(measures)) };
+  const idx = saved.findIndex(s => s.name === name);
+  if (idx >= 0) saved[idx] = entry; else saved.unshift(entry);
+  putSaved(saved);
+  closeSaveDialog();
+  const btn = document.querySelector('.save-btn');
+  if (btn) { const orig = btn.textContent; btn.textContent = '✓ Saved'; btn.style.color = '#4CF'; setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1200); }
+}
+
+function toggleLoadPanel() {
+  const panel = document.getElementById('loadPanel');
+  if (panel.classList.contains('open')) { closeLoadPanel(); return; }
+  renderLoadPanel();
+  panel.classList.add('open');
+  const btn = document.getElementById('loadBtn');
+  const r = btn.getBoundingClientRect();
+  panel.style.top = r.bottom + 'px';
+  panel.style.right = (window.innerWidth - r.right) + 'px';
+}
+function closeLoadPanel() { document.getElementById('loadPanel').classList.remove('open'); }
+function renderLoadPanel() {
+  const list = document.getElementById('loadPanel-list');
+  const saved = getSaved();
+  if (!saved.length) { list.innerHTML = '<div id="loadPanel-empty">No saved arrangements yet.</div>'; return; }
+  list.innerHTML = saved.map((s, i) => {
+    const d = new Date(s.savedAt);
+    const ds = d.toLocaleDateString(undefined, {month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString(undefined, {hour:'2-digit',minute:'2-digit'});
+    const n = s.name.replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    return `<div class="load-item"><span class="load-item-name" onclick="loadArrangement(${i})" title="${n}">${n}</span><span class="load-item-date">${ds}</span><button class="load-item-del" onclick="deleteArrangement(${i})">✕</button></div>`;
+  }).join('');
+}
+function loadArrangement(idx) {
+  const entry = getSaved()[idx]; if (!entry) return;
+  closeLoadPanel();
+  if (fullPlaying) stopFullPlay(); if (playing) stopPlay(); closeModal();
+  measures = JSON.parse(JSON.stringify(entry.measures));
+  measures.forEach(m => { m.id = nextMeasureId++; });
+  if (entry.bpm) setGlobalBpm(entry.bpm);
+  if (entry.measuresPerRow) { MEASURES_PER_ROW = entry.measuresPerRow; document.getElementById('lineBreakSelect').value = String(entry.measuresPerRow); }
+  if (entry.title !== undefined) document.getElementById('arrangementTitle').value = entry.title;
+  renderScore();
+}
+function deleteArrangement(idx) { const s = getSaved(); s.splice(idx, 1); putSaved(s); renderLoadPanel(); }
+document.addEventListener('click', e => {
+  const panel = document.getElementById('loadPanel'), btn = document.getElementById('loadBtn');
+  if (panel && panel.classList.contains('open') && !panel.contains(e.target) && e.target !== btn) closeLoadPanel();
+});
+
+// ── MINIGAMES ─────────────────────────────────────────────────────────────
+let mgMode = null;           // 'addkick' | 'randombeats'
+let mgData = null;           // current working measure data
+let mgKickDiv = 16;          // 16 or 8 for Add a Kick grid
+let mgPlaying = false;
+let mgSchedTimer = null;
+let mgNextStepTime = 0;
+let mgSchedStep = 0;
+let mgLitStep = -1;
+
+const MG_DIV = 16; // always 16th-note grid
+
+function mgDefaultBeat() {
+  const data = emptyData(MG_DIV);
+  [0,2,4,6,8,10,12,14].forEach(s => { data.hihat[s] = 1; });
+  data.kick[0] = 1; data.kick[8] = 1;
+  data.snare[4] = 1; data.snare[12] = 1;
+  return data;
+}
+
+function openMiniGame(mode) {
+  if (fullPlaying) stopFullPlay();
+  if (playing) stopPlay();
+  mgMode = mode;
+  mgData = mgDefaultBeat();
+
+  if (mode === 'guessgroove') {
+    openGuessGroove();
+    return;
+  }
+
+  document.getElementById('minigameOverlay').classList.add('open');
+  document.getElementById('mgTitle').textContent =
+    mode === 'addkick' ? 'Add a Kick' : 'Random Beats';
+
+  // Sync BPM slider to current global BPM
+  const mgSlider = document.getElementById('mgBpmSlider');
+  const mgNum    = document.getElementById('mgBpmNum');
+  if (mgSlider) { mgSlider.value = globalBpm; mgNum.textContent = globalBpm; }
+
+  // Show/hide elements per mode
+  document.getElementById('mgKickGrid').style.display     = mode === 'addkick'     ? '' : 'none';
+  document.getElementById('mgRandomizeBtn').style.display = mode === 'randombeats' ? '' : 'none';
+  document.getElementById('mgDivBtn').style.display       = mode === 'addkick'     ? '' : 'none';
+
+  if (mode === 'addkick') {
+    mgKickDiv = 16;
+    document.getElementById('mgDivBtn').textContent = '16th';
+  }
+
+  mgRenderScore();
+  if (mode === 'addkick') mgRenderKickGrid();
+}
+
+function closeMiniGame() {
+  mgStopPlay();
+  document.getElementById('minigameOverlay').classList.remove('open');
+  document.getElementById('mgScoreRender').innerHTML = '';
+  document.getElementById('mgKickGrid').innerHTML = '';
+  mgMode = null; mgData = null;
+}
+
+// ── MG SCORE RENDER ──────────────────────────────────────────────────────
+function mgRenderScore() {
+  if (typeof ABCJS === 'undefined') { setTimeout(mgRenderScore, 100); return; }
+  const wrap = document.getElementById('mgScoreRender');
+  wrap.innerHTML = '';
+
+  const m = { division: MG_DIV, data: mgData };
+  const abc = rowABC([m], 0);
+  if (!abc) return;
+
+  // Render off-screen at scale:1 so the SVG width === visual width (no CSS transform)
+  const offId = '__mg-offscreen';
+  let offDiv = document.getElementById(offId);
+  if (!offDiv) { offDiv = document.createElement('div'); offDiv.id = offId; document.body.appendChild(offDiv); }
+  offDiv.innerHTML = '';
+  offDiv.style.cssText = 'position:fixed;left:-9999px;top:0;width:900px;visibility:hidden;';
+
+  ABCJS.renderAbc(offId, abc, {
+    staffwidth: 900, scale: 1,
+    paddingtop: 30, paddingbottom: 30, paddingright: 40, paddingleft: 40,
+    add_classes: true,
+  });
+
+  const svg = offDiv.querySelector('svg');
+  if (!svg) { offDiv.remove(); return; }
+
+  // Apply X noteheads before measuring
+  _doApplyXNoteheads(offId);
+
+  // Find the leftmost and rightmost staff lines — those define the true
+  // start and end of the measure (clef/time-sig to final barline)
+  let staffMinX = Infinity, staffMaxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+
+  svg.querySelectorAll('path').forEach(p => {
+    const d = (p.getAttribute('d') || '').trim();
+    const m2 = d.match(/^M\s*([\d.-]+)\s+([\d.-]+)\s+L\s*([\d.-]+)\s+([\d.-]+)/);
+    if (m2) {
+      const y1 = +m2[2], y2 = +m2[4], lineW = Math.abs(+m2[3] - +m2[1]);
+      if (Math.abs(y1 - y2) < 1 && lineW > 30) {
+        // It's a horizontal line (staff line or barline)
+        staffMinX = Math.min(staffMinX, +m2[1]);
+        staffMaxX = Math.max(staffMaxX, +m2[3]);
+      }
+    }
+  });
+
+  // Full content bbox for height
+  svg.querySelectorAll('path, line, ellipse, rect').forEach(el => {
+    try {
+      const bb = el.getBBox();
+      if (bb.width > 0 && bb.height > 0) {
+        minY = Math.min(minY, bb.y);
+        maxY = Math.max(maxY, bb.y + bb.height);
+      }
+    } catch(e) {}
+  });
+
+  if (!isFinite(staffMinX)) { offDiv.remove(); return; }
+
+  // Center = midpoint of the staff (from first to last horizontal line)
+  const staffCenterX = (staffMinX + staffMaxX) / 2;
+  const halfW = (staffMaxX - staffMinX) / 2;
+  const pad = 24;
+
+  const vbX = staffCenterX - halfW - pad;
+  const vbW = (halfW + pad) * 2;
+  const vbY = minY - pad;
+  const vbH = (maxY - minY) + pad * 2;
+
+  svg.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
+
+  // Scale up to fill screen width nicely
+  const availW = Math.min(window.innerWidth - 80, 1200);
+  const scale  = availW / vbW;
+  const cssW   = Math.round(vbW * scale);
+  const cssH   = Math.round(vbH * scale);
+
+  svg.removeAttribute('width');
+  svg.removeAttribute('height');
+  svg.style.cssText = `display:block;width:${cssW}px;height:${cssH}px;`;
+
+  const rendDiv = document.createElement('div');
+  rendDiv.id = '__mg-render';
+  rendDiv.style.cssText = 'width:100%;display:flex;justify-content:center;align-items:center;';
+  rendDiv.appendChild(svg);
+  wrap.appendChild(rendDiv);
+  offDiv.remove();
+}
+
+// ── ADD A KICK GRID ───────────────────────────────────────────────────────
+function mgRenderKickGrid() {
+  const grid = document.getElementById('mgKickGrid');
+  grid.innerHTML = '';
+
+  const div = mgKickDiv;
+  // Labels: 16th = 1 e + a × 4 | 8th = 1 & 2 & 3 & 4 &
+  const stepLabels16 = ['1','e','+','a','2','e','+','a','3','e','+','a','4','e','+','a'];
+  const stepLabels8  = ['1','&','2','&','3','&','4','&'];
+  const stepLabels   = div === 16 ? stepLabels16 : stepLabels8;
+
+  const rowEl = document.createElement('div');
+  rowEl.className = 'mg-row';
+
+  for (let s = 0; s < div; s++) {
+    // Map to the 16th-note grid index for snare/kick data
+    const s16 = div === 8 ? s * 2 : s;
+    const isSnare = mgData.snare[s16] > 0;
+
+    const cell = document.createElement('div');
+    cell.className = 'mg-cell' + (s % (div / 4) === 0 && s > 0 ? ' mg-cell-beat' : '');
+
+    // Step number above
+    const num = document.createElement('div');
+    num.className = 'mg-step-num' + (s % (div / 4) === 0 ? ' beat-num' : '');
+    num.textContent = s + 1;
+
+    // Kick circle
+    const nd = document.createElement('div');
+    nd.id = `mg-nd-kick-${s}`;
+    // Read kick state from the mapped 16th-note slot
+    const fakeEl = { style: {} };
+    const kickState = mgData.kick[s16] || 0;
+    nd.style.cssText = `width:34px;height:34px;border-radius:50%;border:2.5px solid ${kickState > 0 ? '#0F3A6A' : 'var(--border)'};background:${kickState > 0 ? 'var(--blue)' : 'transparent'};transition:transform 0.08s,background 0.08s;margin:0 auto;`;
+
+    if (isSnare) {
+      nd.style.background = '#BBBBBB';
+      nd.style.borderColor = '#999999';
+      nd.style.cursor = 'not-allowed';
+    } else {
+      nd.style.cursor = 'pointer';
+      nd.addEventListener('click', () => {
+        mgData.kick[s16] = mgData.kick[s16] === 0 ? 1 : 0;
+        // In 8th mode, also clear/set the off-beat 16th slot
+        if (div === 8) mgData.kick[s16 + 1] = 0;
+        const newState = mgData.kick[s16];
+        nd.style.background = newState > 0 ? 'var(--blue)' : 'transparent';
+        nd.style.borderColor = newState > 0 ? '#0F3A6A' : 'var(--border)';
+        mgRenderScore();
+      });
+    }
+
+    // Subdivision label below
+    const lbl = document.createElement('div');
+    lbl.className = 'mg-step-num' + (s % (div / 4) === 0 ? ' beat-num' : '');
+    lbl.textContent = stepLabels[s];
+
+    cell.appendChild(num);
+    cell.appendChild(nd);
+    cell.appendChild(lbl);
+    rowEl.appendChild(cell);
+  }
+
+  grid.appendChild(rowEl);
+}
+
+function mgToggleKickDiv() {
+  mgKickDiv = mgKickDiv === 16 ? 8 : 16;
+  const btn = document.getElementById('mgDivBtn');
+  if (btn) btn.textContent = mgKickDiv === 16 ? '16th' : '8th';
+
+  // In 8th mode, collapse any kick notes on odd 16th slots to the even slot
+  if (mgKickDiv === 8) {
+    for (let s = 0; s < 16; s += 2) {
+      if (mgData.kick[s + 1] > 0 && mgData.kick[s] === 0) mgData.kick[s] = 1;
+      mgData.kick[s + 1] = 0;
+    }
+  }
+  mgRenderKickGrid();
+  mgRenderScore();
+}
+
+function mgUpdateNdEl(el, instId, step, isX) {
+  const state = mgData[instId][step];
+  if (isX) {
+    // X-head: bigger rotated diamond
+    el.style.cssText = `
+      width:20px;height:20px;border-radius:0;
+      transform:rotate(45deg);
+      border:2.5px solid ${state > 0 ? '#0F3A6A' : 'var(--border)'};
+      background:${state > 0 ? 'var(--blue)' : 'transparent'};
+      transition:transform 0.08s,background 0.08s;
+      margin:0 auto;
+    `;
+  } else {
+    // Circle: bigger
+    el.style.cssText = `
+      width:34px;height:34px;border-radius:50%;
+      border:2.5px solid ${state > 0 ? '#0F3A6A' : 'var(--border)'};
+      background:${state > 0 ? 'var(--blue)' : 'transparent'};
+      transition:transform 0.08s,background 0.08s;
+      margin:0 auto;
+    `;
+  }
+}
+
+function toggleMgDropdown() {
+  const dd = document.getElementById('mgDropdown');
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+  const dd = document.getElementById('mgDropdown');
+  const btn = document.getElementById('mgDropBtn');
+  if (dd && dd.style.display !== 'none' && !dd.contains(e.target) && e.target !== btn) {
+    dd.style.display = 'none';
+  }
+});
+
+// ── RANDOM BEATS ─────────────────────────────────────────────────────────
+function mgRandomize() {
+  // 8 eighth-note steps (every 2 steps of the 16-step grid)
+  const eighthSteps = [0,2,4,6,8,10,12,14];
+  const choices = ['hhkick', 'hhsnare', 'hh'];
+
+  // Clear all first
+  ['hihat','kick','snare'].forEach(id => { mgData[id] = new Array(MG_DIV).fill(0); });
+
+  eighthSteps.forEach(s => {
+    const choice = choices[Math.floor(Math.random() * choices.length)];
+    mgData.hihat[s] = 1;
+    if (choice === 'hhkick')  mgData.kick[s]  = 1;
+    if (choice === 'hhsnare') mgData.snare[s] = 1;
+  });
+
+  mgRenderScore();
+}
+
+// ── MG PLAYBACK ───────────────────────────────────────────────────────────
+function mgTogglePlay() {
+  mgPlaying ? mgStopPlay() : mgStartPlay();
+}
+
+function mgStartPlay() {
+  const ctx = getCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+  mgSchedStep = 0;
+  mgNextStepTime = ctx.currentTime + 0.007;
+  mgPlaying = true;
+  mgScheduler(); // fire immediately so beat 1 never gets skipped
+  mgSchedTimer = setInterval(mgScheduler, 25);
+  const btn = document.getElementById('mgPlayBtn');
+  if (btn) { btn.textContent = '■ Stop'; btn.classList.add('active'); }
+}
+
+function mgStopPlay() {
+  if (mgSchedTimer) { clearInterval(mgSchedTimer); mgSchedTimer = null; }
+  mgPlaying = false;
+  mgLitStep = -1;
+  const btn = document.getElementById('mgPlayBtn');
+  if (btn) { btn.textContent = '▶ Play'; btn.classList.remove('active'); }
+}
+
+function mgScheduler() {
+  const ctx = getCtx();
+  while (mgNextStepTime < ctx.currentTime + 0.12) {
+    const step = mgSchedStep % MG_DIV;
+    // Play all active instruments at this step
+    ['hihat','snare','kick','crash','ride','hihatft'].forEach(id => {
+      const state = (mgData[id] || [])[step];
+      if (state > 0) playDrum(id, state, mgNextStepTime);
+    });
+    // Step duration: 16th note at globalBpm
+    mgNextStepTime += 60 / globalBpm / 4;
+    mgSchedStep++;
+  }
+}
+
+function mgExportToArranger() {
+  if (!mgData) return;
+  const newMeasure = { id: nextMeasureId++, division: MG_DIV, data: JSON.parse(JSON.stringify(mgData)) };
+  measures.push(newMeasure);
+  renderScore();
+  // Brief flash on button
+  const btn = event.currentTarget;
+  const orig = btn.textContent;
+  btn.textContent = '✓ Added!';
+  btn.style.color = '#6CF';
+  btn.style.borderColor = '#6CF';
+  setTimeout(() => { btn.textContent = orig; btn.style.color = '#4A7'; btn.style.borderColor = '#4A7'; }, 1200);
+}
+
+function mgReset() {
+  mgStopPlay();
+  mgData = mgDefaultBeat();
+  mgKickDiv = 16;
+  const mdBtn = document.getElementById('mgDivBtn');
+  if (mdBtn) mdBtn.textContent = '16th';
+  mgRenderScore();
+  if (mgMode === 'addkick') mgRenderKickGrid();
+}
+
+// ── GUESS THE GROOVE ──────────────────────────────────────────────────────
+const GG_INSTS = [
+  { id: 'hihat', label: 'Hi-Hat', isX: true  },
+  { id: 'snare', label: 'Snare',  isX: false },
+  { id: 'kick',  label: 'Kick',   isX: false },
+];
+
+let ggAnswerData   = null;   // teacher's hidden groove
+let ggGuessData    = null;   // student's attempt
+let ggRevealed     = false;
+let ggSgDivision   = 16;     // division for set-groove editor
+let ggGuessDivision = 8;     // division for student guess grid (8 or 16); easy=8, medium/hard=16
+let ggHardMode     = false;  // kept for compat
+let ggDifficulty   = 'easy'; // 'easy' | 'medium' | 'hard'
+let ggStreak       = 0;
+let ggSgData       = null;   // working data inside the set-groove modal
+let ggPlaying      = false;
+let ggPlayMode     = null;   // 'guess' | 'answer'
+let ggSchedTimer   = null;
+let ggNextStepTime = 0;
+let ggSchedStep    = 0;
+
+function ggEmptyData(div) {
+  const d = {};
+  GG_INSTS.forEach(i => { d[i.id] = new Array(div).fill(0); });
+  d.crash = new Array(div).fill(0);
+  d.ride  = new Array(div).fill(0);
+  return d;
+}
+
+// ── OPEN / CLOSE ─────────────────────────────────────────────────────────
+function ggToggleDifficulty() {
+  ggDifficulty = ggDifficulty === 'easy' ? 'medium' : ggDifficulty === 'medium' ? 'hard' : 'easy';
+  ggApplyDifficulty();
+  ggRenderGuessGrid();  // Dynamically switch between 8 (easy) and 16 (med/hard)
+}
+
+function ggApplyDifficulty() {
+  const btn      = document.getElementById('ggDiffBtn');
+  const checkBtn = document.getElementById('ggCheckBtn');
+  const slider   = document.getElementById('ggBpmSlider');
+  const numEl    = document.getElementById('ggBpmNum');
+
+  if (ggDifficulty === 'easy') {
+    if (btn) { btn.textContent = 'Easy'; btn.style.color = 'var(--ink2)'; btn.style.borderColor = 'var(--border)'; }
+    if (checkBtn) { checkBtn.style.display = ''; checkBtn.disabled = false; checkBtn.style.opacity = '1'; }
+    ggGuessDivision = 8;
+    if (slider) slider.min = '40';
+  } else if (ggDifficulty === 'medium') {
+    if (btn) { btn.textContent = 'Medium'; btn.style.color = '#E8A045'; btn.style.borderColor = '#6A4010'; }
+    if (checkBtn) { checkBtn.style.display = ''; checkBtn.disabled = false; checkBtn.style.opacity = '1'; }
+    ggGuessDivision = 16;
+    if (slider) slider.min = '40';
+  } else {
+    if (btn) { btn.textContent = 'Hard'; btn.style.color = 'var(--red)'; btn.style.borderColor = 'var(--red)'; }
+    if (checkBtn) checkBtn.style.display = 'none';
+    ggGuessDivision = 16;
+    if (slider) {
+      slider.min = '90';
+      slider.value = '90';
+      globalBpm = 90; bpm = 90;
+      if (numEl) numEl.textContent = '90';
+    }
+  }
+  ggHardMode = ggDifficulty === 'hard';
+  ggHsViewMode = ggDifficulty;
+  ggRenderHighScores();
+}
+
+// ── HIGH SCORES ────────────────────────────────────────────────────────────
+const GG_HS_KEY = 'ggHighScores';
+let ggHsViewMode = 'easy';
+
+function ggGetScores() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(GG_HS_KEY) || '{"easy":[],"medium":[],"hard":[]}');
+    // Migrate legacy plain numbers to objects
+    ['easy','medium','hard'].forEach(m => {
+      if (!raw[m]) raw[m] = [];
+      raw[m] = raw[m].map(s => typeof s === 'number' ? {score:s, name:''} : s);
+    });
+    return raw;
+  } catch(e) { return {easy:[], medium:[], hard:[]}; }
+}
+
+function ggSaveScore(mode, score, name) {
+  if (!score || score <= 0) return;
+  const all = ggGetScores();
+  if (!all[mode]) all[mode] = [];
+  all[mode].push({score: score, name: (name || '').trim().slice(0, 20)});
+  all[mode].sort((a,b) => b.score - a.score);
+  all[mode] = all[mode].slice(0, 10);
+  localStorage.setItem(GG_HS_KEY, JSON.stringify(all));
+}
+
+function ggSetScoreName(mode, idx, name) {
+  const all = ggGetScores();
+  if (all[mode] && all[mode][idx]) {
+    all[mode][idx].name = name.trim().slice(0, 20);
+    localStorage.setItem(GG_HS_KEY, JSON.stringify(all));
+  }
+}
+
+function ggDeleteScoreName(mode, idx) {
+  const all = ggGetScores();
+  if (all[mode] && all[mode][idx]) {
+    all[mode].splice(idx, 1);
+    localStorage.setItem(GG_HS_KEY, JSON.stringify(all));
+    ggRenderHighScores();
+  }
+}
+
+function ggCycleHsMode() {
+  ggHsViewMode = ggHsViewMode === 'easy' ? 'medium' : ggHsViewMode === 'medium' ? 'hard' : 'easy';
+  ggRenderHighScores();
+}
+
+function ggRenderHighScores() {
+  const btn = document.getElementById('ggHsModeBtn');
+  const list = document.getElementById('ggHsList');
+  if (!btn || !list) return;
+
+  btn.textContent = ggHsViewMode.charAt(0).toUpperCase() + ggHsViewMode.slice(1);
+  btn.className = ggHsViewMode;
+
+  // Long-press (3s) to reset the current mode's scores
+  if (!btn._longPressWired) {
+    btn._longPressWired = true;
+    let pressTimer = null;
+    btn.addEventListener('mousedown', () => {
+      pressTimer = setTimeout(() => {
+        const all = ggGetScores();
+        all[ggHsViewMode] = [];
+        localStorage.setItem(GG_HS_KEY, JSON.stringify(all));
+        ggRenderHighScores();
+        btn.textContent = 'Cleared!';
+        setTimeout(() => ggRenderHighScores(), 1000);
+      }, 3000);
+    });
+    const cancel = () => clearTimeout(pressTimer);
+    btn.addEventListener('mouseup', cancel);
+    btn.addEventListener('mouseleave', cancel);
+    btn.addEventListener('touchend', cancel);
+    btn.addEventListener('touchcancel', cancel);
+  }
+
+  const all = ggGetScores();
+  const scores = (all[ggHsViewMode] || []).slice(0, 10);
+
+  list.innerHTML = '';
+
+  if (scores.length === 0) {
+    const empty = document.createElement('div');
+    empty.id = 'ggHsEmpty';
+    empty.innerHTML = `No scores yet.<br>Hit + to add one!`;
+    list.appendChild(empty);
+  } else {
+    const medals = ['gold','silver','bronze'];
+    scores.forEach((entry, i) => {
+      const row = document.createElement('div');
+      row.className = 'gg-hs-row';
+
+      const rank = document.createElement('span');
+      rank.className = 'gg-hs-rank';
+      rank.textContent = `${i + 1}.`;
+
+      const scoreEl = document.createElement('span');
+      scoreEl.className = `gg-hs-score ${medals[i] || ''}`;
+      scoreEl.textContent = entry.score;
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'gg-hs-name';
+      nameEl.title = 'Click to edit name';
+
+      if (entry.name) {
+        nameEl.textContent = entry.name;
+      } else {
+        nameEl.textContent = '—';
+        nameEl.style.opacity = '0.3';
+      }
+
+      // Click to edit name inline
+      nameEl.addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = entry.name || '';
+        input.maxLength = 20;
+        input.placeholder = 'Name…';
+        input.className = 'gg-hs-name-input';
+        nameEl.replaceWith(input);
+        input.focus();
+        input.select();
+
+        const commit = () => {
+          const mode = ggHsViewMode;
+          ggSetScoreName(mode, i, input.value);
+          ggRenderHighScores();
+        };
+        input.addEventListener('blur', commit);
+        input.addEventListener('keydown', e => {
+          if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+          if (e.key === 'Escape') { input.removeEventListener('blur', commit); ggRenderHighScores(); }
+        });
+      });
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'gg-hs-delete-btn';
+      deleteBtn.title = 'Clear name';
+      deleteBtn.textContent = '✕';
+      deleteBtn.addEventListener('click', () => {
+        ggDeleteScoreName(ggHsViewMode, i);
+      });
+
+      row.appendChild(rank);
+      row.appendChild(scoreEl);
+      row.appendChild(nameEl);
+      row.appendChild(deleteBtn);
+      list.appendChild(row);
+    });
+  }
+
+  // Always show the + button at the bottom (unless already at max 10)
+  if (scores.length < 10) {
+    const addBtn = document.createElement('button');
+    addBtn.id = 'ggHsAddBtn';
+    addBtn.title = 'Add entry';
+    addBtn.textContent = '+';
+    addBtn.addEventListener('click', () => ggShowNewEntryRow(list, addBtn));
+    list.appendChild(addBtn);
+  }
+}
+
+function ggShowNewEntryRow(list, addBtn) {
+  // Remove the + button while editing
+  addBtn.remove();
+
+  const row = document.createElement('div');
+  row.className = 'gg-hs-new-row';
+
+  const rankEl = document.createElement('span');
+  rankEl.className = 'gg-hs-rank';
+  rankEl.textContent = '·';
+
+  const scoreInput = document.createElement('input');
+  scoreInput.type = 'number';
+  scoreInput.min = '1';
+  scoreInput.max = '9999';
+  scoreInput.maxLength = 4;
+  scoreInput.placeholder = '0';
+  scoreInput.className = 'gg-hs-score-input';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.maxLength = 20;
+  nameInput.placeholder = 'Name…';
+  nameInput.className = 'gg-hs-name-input';
+
+  row.appendChild(rankEl);
+  row.appendChild(scoreInput);
+  row.appendChild(nameInput);
+  list.appendChild(row);
+
+  scoreInput.focus();
+
+  const commit = () => {
+    const scoreVal = parseInt(scoreInput.value, 10);
+    const nameVal = nameInput.value.trim();
+    if (scoreVal > 0) {
+      ggSaveScore(ggHsViewMode, scoreVal, nameVal);
+    }
+    ggRenderHighScores();
+  };
+
+  // Tab from score → name; Enter/blur on name commits
+  scoreInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); nameInput.focus(); }
+    if (e.key === 'Escape') { ggRenderHighScores(); }
+  });
+  nameInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Escape') { ggRenderHighScores(); }
+  });
+  nameInput.addEventListener('blur', () => {
+    // Small delay so clicking + again doesn't double-fire
+    setTimeout(commit, 120);
+  });
+}
+
+function ggUpdateStreak(correct) {
+  if (correct) {
+    ggStreak++;
+  } else {
+    ggStreak = 0;
+    ggRenderHighScores();
+  }
+  const el = document.getElementById('ggStreakNum');
+  if (el) el.textContent = ggStreak;
+}
+
+function openGuessGroove() {
+  ggAnswerData = JSON.parse(JSON.stringify(mgDefaultBeat ? mgDefaultBeat() : ggEmptyData(MG_DIV)));
+  // Ensure only GG_INSTS keys are in answer (hihat/snare/kick)
+  const defaultBeat = {
+    hihat: new Array(MG_DIV).fill(0),
+    snare: new Array(MG_DIV).fill(0),
+    kick:  new Array(MG_DIV).fill(0),
+    crash: new Array(MG_DIV).fill(0),
+    ride:  new Array(MG_DIV).fill(0),
+  };
+  [0,2,4,6,8,10,12,14].forEach(s => { defaultBeat.hihat[s] = 1; });
+  defaultBeat.kick[0] = 1; defaultBeat.kick[8] = 1;
+  defaultBeat.snare[4] = 1; defaultBeat.snare[12] = 1;
+  ggAnswerData = defaultBeat;
+
+  // Student starts with the same default beat
+  ggGuessData  = JSON.parse(JSON.stringify(defaultBeat));
+  ggHardMode = false;
+  ggDifficulty = 'easy';
+  ggRevealed   = false;
+  ggSgDivision = 16;
+
+  document.getElementById('ggOverlay').classList.add('open');
+  document.getElementById('ggAnswerPanel').classList.add('hidden');
+  document.getElementById('ggAnswerLabel').textContent = 'Hidden Groove';
+  document.getElementById('ggPlayAnswerBtn').style.display = 'none';
+  document.getElementById('ggResult').textContent = '';
+  document.getElementById('ggResult').className = '';
+
+  // Sync BPM slider to current global BPM
+  const ggSlider = document.getElementById('ggBpmSlider');
+  const ggNum    = document.getElementById('ggBpmNum');
+  if (ggSlider) { ggSlider.value = globalBpm; ggNum.textContent = globalBpm; }
+
+  ggRenderGuessScore();
+  ggRenderGuessGrid();
+  ggRenderAnswerScore();
+  ggApplyDifficulty();
+  ggHsViewMode = ggDifficulty;
+  ggRenderHighScores();
+}
+
+function closeGuessGroove() {
+  ggStopPlay();
+  document.getElementById('ggOverlay').classList.remove('open');
+  document.getElementById('ggGuessScore').innerHTML  = '';
+  document.getElementById('ggAnswerScore').innerHTML = '';
+  document.getElementById('ggGuessGrid').innerHTML   = '';
+  ggAnswerData = null; ggGuessData = null;
+}
+
+// ── SET GROOVE MODAL ─────────────────────────────────────────────────────
+function openSetGroove() {
+  ggSgDivision = ggAnswerData
+    ? (Object.values(ggAnswerData).find(a => Array.isArray(a))?.length || 16)
+    : (ggDifficulty === 'easy' ? 8 : 16);
+  
+  // Initialize ggSgData
+  if (ggAnswerData) {
+    // If we have answer data, use it as the base
+    if (ggDifficulty === 'easy' && Object.values(ggAnswerData).find(a => Array.isArray(a))?.length === 16) {
+      // Converting from 16-step to 8-step for easy mode editing
+      ggSgData = ggEmptyData(8);
+      GG_INSTS.forEach(inst => {
+        for (let s = 0; s < 8; s++) {
+          ggSgData[inst.id][s] = ggAnswerData[inst.id][s * 2] || 0;
+        }
+      });
+      ggSgDivision = 8;
+    } else {
+      ggSgData = JSON.parse(JSON.stringify(ggAnswerData));
+    }
+  } else {
+    ggSgData = ggEmptyData(ggSgDivision);
+  }
+  
+  document.getElementById('sgDivSelect').value = ggSgDivision;
+  // Disable division select in easy mode (lock to 8th notes)
+  document.getElementById('sgDivSelect').disabled = ggDifficulty === 'easy';
+  document.getElementById('setGrooveModal').classList.add('open');
+  sgRenderGrid();
+}
+
+function closeSetGroove() {
+  document.getElementById('setGrooveModal').classList.remove('open');
+}
+
+function sgSetDivision(val) {
+  ggSgDivision = +val;
+  const old = ggSgData;
+  ggSgData = ggEmptyData(ggSgDivision);
+  // Carry over what fits
+  GG_INSTS.forEach(inst => {
+    const prev = old[inst.id] || [];
+    for (let s = 0; s < ggSgDivision && s < prev.length; s++) ggSgData[inst.id][s] = prev[s];
+  });
+  sgRenderGrid();
+}
+
+function sgClear() {
+  ggSgData = ggEmptyData(ggSgDivision);
+  sgRenderGrid();
+}
+
+function submitGroove() {
+  // If set groove is in 8-step (easy) mode, expand to 16-step for answer data
+  if (ggSgDivision === 8) {
+    ggAnswerData = ggEmptyData(MG_DIV); // Create 16-step array
+    GG_INSTS.forEach(inst => {
+      // Map 8-step positions to 16-step positions: step 0→0, 1→2, 2→4, etc.
+      for (let s = 0; s < 8; s++) {
+        ggAnswerData[inst.id][s * 2] = ggSgData[inst.id][s];
+      }
+    });
+  } else {
+    ggAnswerData = JSON.parse(JSON.stringify(ggSgData));
+  }
+  ggRevealed   = false;
+  closeSetGroove();
+  document.getElementById('ggAnswerPanel').classList.add('hidden');
+  document.getElementById('ggAnswerLabel').textContent = 'Hidden Groove';
+  document.getElementById('ggPlayAnswerBtn').style.display = 'none';
+  document.getElementById('ggResult').textContent = '';
+  document.getElementById('ggResult').className = '';
+  // Clear any stale highlights without touching the guess notes
+  document.querySelectorAll('.gg-cell').forEach(c => c.classList.remove('gg-correct','gg-wrong'));
+  // Re-enable reveal button for the new groove
+  const revealBtn = document.getElementById('ggRevealBtn');
+  if (revealBtn) {
+    revealBtn.disabled = false;
+    revealBtn.style.opacity = '1';
+    revealBtn.style.cursor = 'pointer';
+  }
+  ggRenderGuessScore();
+  ggRenderAnswerScore();
+}
+
+// ── SET GROOVE GRID ──────────────────────────────────────────────────────
+function sgRenderGrid() {
+  const div = ggSgDivision;
+  const spb = div / 4;
+  let html = '<thead><tr><th style="background:var(--paper2);border-right:2px solid var(--border);min-width:52px;"></th>';
+  for (let s = 0; s < div; s++) {
+    const beatIdx = Math.floor(s / spb), sub = s % spb;
+    const isBeat = sub === 0, isBar = s === 0;
+    let lbl = isBeat ? (beatIdx + 1) : (div === 16 ? ['e','&','a'][sub-1] : div === 8 ? '&' : sub === 2 ? '3' : '');
+    const cls = isBar ? 'mbar beat-th' : isBeat ? 'beat-th' : '';
+    html += `<th class="${cls}">${lbl}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+
+  GG_INSTS.forEach(inst => {
+    html += `<tr><td class="row-label" style="min-width:52px;font-style:italic;">${inst.label}</td>`;
+    for (let s = 0; s < div; s++) {
+      const sub = s % spb;
+      const cls = sub === 0 && s > 0 ? 'ecell beat-div' : 'ecell';
+      const state = ggSgData[inst.id][s];
+      const ndCls = getNdClass(state, inst.isX);
+      html += `<td class="${cls}" data-inst="${inst.id}" data-step="${s}">
+        <div class="nd ${ndCls}" id="sg-nd-${inst.id}-${s}"></div>
+      </td>`;
+    }
+    html += '</tr>';
+  });
+  html += '</tbody>';
+
+  const tbl = document.getElementById('sgGrid');
+  tbl.innerHTML = html;
+  tbl.onclick = e => {
+    const cell = e.target.closest('[data-inst][data-step]');
+    if (!cell) return;
+    const inst = cell.dataset.inst, step = +cell.dataset.step;
+    ggSgData[inst][step] = ggSgData[inst][step] === 0 ? 1 : 0;
+    const instObj = GG_INSTS.find(i => i.id === inst);
+    const el = document.getElementById(`sg-nd-${inst}-${step}`);
+    if (el) el.className = 'nd ' + getNdClass(ggSgData[inst][step], instObj ? instObj.isX : false);
+  };
+}
+
+// ── GUESS GRID ────────────────────────────────────────────────────────────
+function ggRenderGuessGrid() {
+  const div = ggGuessDivision;
+  const spb = div / 4;
+  let html = '<thead><tr><th style="background:var(--paper2);border-right:2px solid var(--border);min-width:52px;"></th>';
+  for (let s = 0; s < div; s++) {
+    const beatIdx = Math.floor(s / spb), sub = s % spb;
+    const isBeat = sub === 0, isBar = s === 0;
+    let lbl = isBeat ? (beatIdx + 1) : (div === 16 ? ['e','&','a'][sub-1] : div === 8 ? '&' : sub === 2 ? '3' : '');
+    const cls = (isBar ? 'gg-bar ' : '') + (isBeat ? 'gg-beat' : '');
+    html += `<th class="${cls}">${lbl}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+
+  GG_INSTS.forEach(inst => {
+    html += `<tr><td class="gg-label">${inst.label}</td>`;
+    for (let s = 0; s < div; s++) {
+      const sub = s % spb;
+      const cellCls = 'gg-cell' + (sub === 0 && s > 0 ? ' gg-bdiv' : '') + (s === 0 ? ' gg-bbar' : '');
+      // Map grid position to actual data index (8th notes use every other 16th step)
+      const dataStep = div === 8 ? s * 2 : s;
+      const state = (ggGuessData[inst.id] || [])[dataStep] || 0;
+      const ndCls = getNdClass(state, inst.isX);
+      html += `<td class="${cellCls}" data-inst="${inst.id}" data-step="${s}" id="gg-cell-${inst.id}-${s}">
+        <div class="nd ${ndCls}" id="gg-nd-${inst.id}-${s}"></div>
+      </td>`;
+    }
+    html += '</tr>';
+  });
+  html += '</tbody>';
+
+  const wrap = document.getElementById('ggGuessGrid');
+  wrap.innerHTML = `<table class="gg-grid-table">${html}</table>`;
+  wrap.querySelector('table').onclick = e => {
+    if (ggRevealed) return; // locked after reveal
+    const cell = e.target.closest('[data-inst][data-step]');
+    if (!cell) return;
+    const inst = cell.dataset.inst, step = +cell.dataset.step;
+    // Map grid position to actual data index
+    const dataStep = ggGuessDivision === 8 ? step * 2 : step;
+    ggGuessData[inst][dataStep] = ggGuessData[inst][dataStep] === 0 ? 1 : 0;
+    const instObj = GG_INSTS.find(i => i.id === inst);
+    const el = document.getElementById(`gg-nd-${inst}-${step}`);
+    if (el) el.className = 'nd ' + getNdClass(ggGuessData[inst][dataStep], instObj ? instObj.isX : false);
+    // Re-enable check button when student edits
+    const cb = document.getElementById('ggCheckBtn');
+    if (cb && ggDifficulty !== 'hard') { cb.disabled = false; cb.style.opacity = '1'; cb.style.cursor = ''; }
+    ggRenderGuessScore();
+  };
+}
+
+// ── SCORE RENDERS ─────────────────────────────────────────────────────────
+function ggRenderSVG(data, containerId) {
+  if (typeof ABCJS === 'undefined') { setTimeout(() => ggRenderSVG(data, containerId), 100); return; }
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  const div = Object.values(data).find(a => Array.isArray(a))?.length || MG_DIV;
+  const m = { division: div, data };
+  const abc = rowABC([m], 0);
+  if (!abc) return;
+
+  const offId = `__gg-off-${containerId}`;
+  let offDiv = document.getElementById(offId);
+  if (!offDiv) { offDiv = document.createElement('div'); offDiv.id = offId; document.body.appendChild(offDiv); }
+  offDiv.innerHTML = '';
+  offDiv.style.cssText = 'position:fixed;left:-9999px;top:0;width:700px;visibility:hidden;';
+
+  ABCJS.renderAbc(offId, abc, {
+    staffwidth: 700, scale: 1,
+    paddingtop: 20, paddingbottom: 20, paddingright: 30, paddingleft: 30,
+    add_classes: true,
+  });
+
+  const svg = offDiv.querySelector('svg');
+  if (!svg) { offDiv.remove(); return; }
+  _doApplyXNoteheads(offId);
+
+  // Crop to staff content
+  let staffMinX = Infinity, staffMaxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  svg.querySelectorAll('path').forEach(p => {
+    const d2 = (p.getAttribute('d') || '').trim();
+    const m2 = d2.match(/^M\s*([\d.-]+)\s+([\d.-]+)\s+L\s*([\d.-]+)\s+([\d.-]+)/);
+    if (m2) {
+      const lineW = Math.abs(+m2[3] - +m2[1]);
+      if (Math.abs(+m2[2] - +m2[4]) < 1 && lineW > 30) {
+        staffMinX = Math.min(staffMinX, +m2[1]);
+        staffMaxX = Math.max(staffMaxX, +m2[3]);
+      }
+    }
+  });
+  svg.querySelectorAll('path, line, ellipse, rect').forEach(el => {
+    try { const bb = el.getBBox(); if (bb.width > 0 && bb.height > 0) { minY = Math.min(minY, bb.y); maxY = Math.max(maxY, bb.y + bb.height); } } catch(e) {}
+  });
+  if (!isFinite(staffMinX)) { offDiv.remove(); return; }
+
+  const pad = 20;
+  const cx = (staffMinX + staffMaxX) / 2;
+  const hw = (staffMaxX - staffMinX) / 2;
+  svg.setAttribute('viewBox', `${cx - hw - pad} ${minY - pad} ${(hw + pad) * 2} ${(maxY - minY) + pad * 2}`);
+
+  const vbW = (hw + pad) * 2, vbH = (maxY - minY) + pad * 2;
+  // Fill container width
+  const panelW = wrap.closest('.gg-panel')?.clientWidth || 420;
+  const cssW = Math.min(panelW - 8, 620);
+  const cssH = Math.round(vbH * (cssW / vbW));
+  svg.removeAttribute('width'); svg.removeAttribute('height');
+  svg.style.cssText = `display:block;width:${cssW}px;height:${cssH}px;`;
+
+  const d = document.createElement('div');
+  d.style.cssText = 'width:100%;display:flex;justify-content:center;';
+  d.appendChild(svg);
+  wrap.appendChild(d);
+  offDiv.remove();
+}
+
+function ggRenderGuessScore()  { ggRenderSVG(ggGuessData,  'ggGuessScore'); }
+function ggRenderAnswerScore() {
+  if (!ggAnswerData) {
+    document.getElementById('ggAnswerScore').innerHTML =
+      '<div style="font-family:var(--mono);font-size:11px;color:var(--ink3);padding:24px;text-align:center;letter-spacing:0.1em;">No groove set yet.<br>Click ✎ Set Groove to begin.</div>';
+    return;
+  }
+  ggRenderSVG(ggAnswerData, 'ggAnswerScore');
+}
+
+// ── SHARED HIGHLIGHT LOGIC ────────────────────────────────────────────────
+// highlight mode:
+//   'check'  — only highlight placed notes (red if wrong), leave empty cells alone,
+//              show "x notes missing" text below
+//   'reveal' — highlight all cells (green correct, red wrong), show full result
+
+function ggApplyHighlights(mode) {
+  if (!ggAnswerData) return;
+  const answerDiv = Object.values(ggAnswerData).find(a => Array.isArray(a))?.length || MG_DIV;
+  const guessDiv  = ggGuessDivision;
+  let wrongNotes = 0, missingNotes = 0;
+
+  GG_INSTS.forEach(inst => {
+    for (let s = 0; s < guessDiv; s++) {
+      // Map grid position to actual data indices
+      // In easy mode (guessDiv=8): grid step s maps to data step s*2
+      // In medium/hard mode (guessDiv=16): grid step s maps to data step s
+      const guessDataStep = guessDiv === 8 ? s * 2 : s;
+      
+      // Map guess step to answer step
+      const answerDataStep = answerDiv === guessDiv ? guessDataStep : (answerDiv === 16 && guessDiv === 8 ? guessDataStep : Math.floor(guessDataStep / 2));
+      
+      const answerOn = (ggAnswerData[inst.id]?.[answerDataStep] || 0) > 0;
+      const guessOn  = (ggGuessData[inst.id]?.[guessDataStep]  || 0) > 0;
+      const cell = document.getElementById(`gg-cell-${inst.id}-${s}`);
+      if (!cell) continue;
+      cell.classList.remove('gg-correct', 'gg-wrong');
+
+      if (mode === 'reveal') {
+        // Full comparison — green if match, red if mismatch
+        cell.classList.add(answerOn === guessOn ? 'gg-correct' : 'gg-wrong');
+        if (answerOn !== guessOn) wrongNotes++;
+      } else {
+        // Check mode — only mark placed notes
+        if (guessOn) {
+          if (answerOn) {
+            cell.classList.add('gg-correct'); // correctly placed
+          } else {
+            cell.classList.add('gg-wrong');   // placed but shouldn't be
+            wrongNotes++;
+          }
+        } else if (answerOn) {
+          missingNotes++; // should be here but wasn't placed
+        }
+      }
+    }
+  });
+
+  const result = document.getElementById('ggResult');
+  if (mode === 'reveal') {
+    if (wrongNotes === 0 && missingNotes === 0) {
+      result.textContent = '✓ Perfect! Every note matches.';
+      result.className = 'pass';
+      ggUpdateStreak(true);
+      ggConfetti();
+    } else {
+      result.textContent = `✗ ${wrongNotes + missingNotes} note${wrongNotes + missingNotes !== 1 ? 's' : ''} incorrect.`;
+      result.className = 'fail';
+      ggUpdateStreak(false);
+    }
+  } else {
+    // Check mode
+    const parts = [];
+    if (wrongNotes > 0)   parts.push(`${wrongNotes} wrong note${wrongNotes !== 1 ? 's' : ''}`);
+    if (missingNotes > 0) parts.push(`${missingNotes} missing note${missingNotes !== 1 ? 's' : ''}`);
+    if (parts.length === 0) {
+      result.textContent = '✓ Looking good so far!';
+      result.className = 'pass';
+    } else {
+      result.textContent = parts.join(' · ');
+      result.className = 'fail';
+    }
+  }
+}
+
+// ── CONFETTI EFFECT ───────────────────────────────────────────────────────
+function ggConfetti() {
+  const confettiPieces = ['🎉', '✨', '🎊', '⭐', '🌟'];
+  const count = 50;  // Reduced from 120 for less density
+  const spawnDuration = 1.2;  // Spawn confetti over 1.2 seconds instead of all at once
+  
+  for (let i = 0; i < count; i++) {
+    // Stagger the creation of confetti pieces
+    const spawnDelay = (i / count) * spawnDuration;
+    
+    setTimeout(() => {
+      const piece = document.createElement('div');
+      piece.className = 'confetti';
+      piece.textContent = confettiPieces[Math.floor(Math.random() * confettiPieces.length)];
+      
+      // Random starting position across top of screen
+      const startX = Math.random() * window.innerWidth;
+      const startY = -30;
+      piece.style.left = startX + 'px';
+      piece.style.top = startY + 'px';
+      
+      // Random fall distance and horizontal drift
+      const tx = (Math.random() - 0.5) * 400;
+      const ty = window.innerHeight + 60;
+      const delay = Math.random() * 0.3;
+      
+      piece.style.setProperty('--tx', tx + 'px');
+      piece.style.setProperty('--ty', ty + 'px');
+      piece.style.animationDelay = delay + 's';
+      
+      document.body.appendChild(piece);
+      
+      // Remove after animation (2.5s fall + animation delay)
+      setTimeout(() => piece.remove(), 2800 + delay * 1000);
+    }, spawnDelay * 1000);
+  }
+}
+
+// ── CHECK (no reveal) ─────────────────────────────────────────────────────
+function ggCheck() {
+  if (!ggAnswerData) { return; }
+  ggApplyHighlights('check');
+  // Gray out after one use (easy and medium)
+  const btn = document.getElementById('ggCheckBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.style.opacity = '0.35';
+    btn.style.cursor = 'not-allowed';
+  }
+}
+
+// ── REVEAL ────────────────────────────────────────────────────────────────
+function ggReveal() {
+  if (!ggAnswerData) { alert('Set a groove first!'); return; }
+  ggRevealed = true;
+
+  // Gray out the reveal button
+  const revealBtn = document.getElementById('ggRevealBtn');
+  if (revealBtn) {
+    revealBtn.disabled = true;
+    revealBtn.style.opacity = '0.35';
+    revealBtn.style.cursor = 'not-allowed';
+  }
+
+  // Unhide answer panel
+  document.getElementById('ggAnswerPanel').classList.remove('hidden');
+  document.getElementById('ggAnswerLabel').textContent = 'The Groove';
+  document.getElementById('ggPlayAnswerBtn').style.display = '';
+
+  ggApplyHighlights('reveal');
+}
+
+// ── GG RESET ──────────────────────────────────────────────────────────────
+function ggResetRound() {
+  ggStopPlay();
+  // Reset the guess grid and streak, but keep difficulty and answer
+  const defaultBeat = () => {
+    const d = { hihat: new Array(MG_DIV).fill(0), snare: new Array(MG_DIV).fill(0), kick: new Array(MG_DIV).fill(0), crash: new Array(MG_DIV).fill(0), ride: new Array(MG_DIV).fill(0) };
+    [0,2,4,6,8,10,12,14].forEach(s => { d.hihat[s] = 1; });
+    d.kick[0] = 1; d.kick[8] = 1;
+    d.snare[4] = 1; d.snare[12] = 1;
+    return d;
+  };
+  ggGuessData = defaultBeat();
+  ggStreak = 0;
+  ggRevealed = false;
+  document.getElementById('ggAnswerPanel').classList.add('hidden');
+  document.getElementById('ggAnswerLabel').textContent = 'Hidden Groove';
+  document.getElementById('ggPlayAnswerBtn').style.display = 'none';
+  document.getElementById('ggResult').textContent = '';
+  document.getElementById('ggResult').className = '';
+  document.querySelectorAll('.gg-cell').forEach(c => c.classList.remove('gg-correct','gg-wrong'));
+  const el = document.getElementById('ggStreakNum');
+  if (el) el.textContent = '0';
+  ggRenderGuessScore();
+  ggRenderGuessGrid();
+  ggRenderAnswerScore();
+}
+
+function ggReset() {
+  ggStopPlay();
+  const defaultBeat = () => {
+    const d = { hihat: new Array(MG_DIV).fill(0), snare: new Array(MG_DIV).fill(0), kick: new Array(MG_DIV).fill(0), crash: new Array(MG_DIV).fill(0), ride: new Array(MG_DIV).fill(0) };
+    [0,2,4,6,8,10,12,14].forEach(s => { d.hihat[s] = 1; });
+    d.kick[0] = 1; d.kick[8] = 1;
+    d.snare[4] = 1; d.snare[12] = 1;
+    return d;
+  };
+  ggAnswerData = defaultBeat();
+  ggGuessData  = defaultBeat();
+  ggHardMode = false;
+  ggDifficulty = 'easy';
+  ggApplyDifficulty(); // sets ggGuessDivision=8 for easy
+  ggRevealed   = false;
+  document.getElementById('ggAnswerPanel').classList.add('hidden');
+  document.getElementById('ggAnswerLabel').textContent = 'Hidden Groove';
+  document.getElementById('ggPlayAnswerBtn').style.display = 'none';
+  document.getElementById('ggResult').textContent = '';
+  document.getElementById('ggResult').className = '';
+  document.querySelectorAll('.gg-cell').forEach(c => c.classList.remove('gg-correct','gg-wrong'));
+  ggRenderGuessScore();
+  ggRenderGuessGrid();
+  ggRenderAnswerScore();
+  openSetGroove();
+}
+
+// ── GG PLAYBACK ───────────────────────────────────────────────────────────
+function ggTogglePlay(mode) {
+  if (ggPlaying && ggPlayMode === mode) { ggStopPlay(); return; }
+  ggStopPlay();
+  ggPlayMode = mode;
+  const data = mode === 'answer' ? ggAnswerData : ggGuessData;
+  if (!data) return;
+
+  const ctx = getCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+  ggSchedStep = 0;
+  ggNextStepTime = ctx.currentTime + 0.007;
+  ggPlaying = true;
+  const ggSched = () => {
+    const div = Object.values(data).find(a => Array.isArray(a))?.length || MG_DIV;
+    while (ggNextStepTime < ctx.currentTime + 0.12) {
+      const step = ggSchedStep % div;
+      GG_INSTS.forEach(inst => {
+        const state = (data[inst.id] || [])[step];
+        if (state > 0) playDrum(inst.id, state, ggNextStepTime);
+      });
+      ggNextStepTime += 60 / globalBpm / (div / 4);
+      ggSchedStep++;
+    }
+  };
+  ggSched(); // fire immediately so beat 1 never gets skipped
+  ggSchedTimer = setInterval(ggSched, 25);
+
+  // Activate the right button
+  const btnId = mode === 'answer'
+    ? (ggRevealed ? 'ggPlayAnswerBtn' : 'ggPlayHiddenBtn')
+    : 'ggPlayGuessBtn';
+  const btn = document.getElementById(btnId);
+  if (btn) { btn.textContent = '■ Stop'; btn.classList.add('active'); }
+}
+
+function ggStopPlay() {
+  if (ggSchedTimer) { clearInterval(ggSchedTimer); ggSchedTimer = null; }
+  ggPlaying = false;
+  const guessBtn  = document.getElementById('ggPlayGuessBtn');
+  const hiddenBtn = document.getElementById('ggPlayHiddenBtn');
+  const answerBtn = document.getElementById('ggPlayAnswerBtn');
+  if (guessBtn)  { guessBtn.textContent  = '▶ Play';         guessBtn.classList.remove('active'); }
+  if (hiddenBtn) { hiddenBtn.textContent = '▶ Play Hidden';  hiddenBtn.classList.remove('active'); }
+  if (answerBtn) { answerBtn.textContent = '▶ Play Answer';  answerBtn.classList.remove('active'); }
+}
+// ── PRINT RE-RENDER ───────────────────────────────────────────────────────
+window.addEventListener('beforeprint', () => {
+  if (typeof ABCJS === 'undefined') return;
+
+  // A4/Letter at 8mm margins ≈ 190mm usable ≈ 720pt at 96dpi
+  const PRINT_SW    = 900;
+  const PRINT_SCALE = 1.2;
+  const rowCount    = Math.max(1, Math.ceil(measures.length / MEASURES_PER_ROW));
+
+  for (let row = 0; row < rowCount; row++) {
+    const rowMeasures  = measures.slice(row * MEASURES_PER_ROW, (row + 1) * MEASURES_PER_ROW);
+    const globalOffset = row * MEASURES_PER_ROW;
+    const abc          = rowABC(rowMeasures, globalOffset);
+    if (!abc) continue;
+
+    const renderId  = `full-score-render-${row}`;
+    const renderDiv = document.getElementById(renderId);
+    if (!renderDiv) continue;
+
+    // Render off-screen so we can measure the SVG
+    const offId = `__print-off-${row}`;
+    let offDiv = document.getElementById(offId);
+    if (!offDiv) { offDiv = document.createElement('div'); offDiv.id = offId; document.body.appendChild(offDiv); }
+    offDiv.style.cssText = `position:fixed;left:-9999px;top:0;width:${PRINT_SW}px;visibility:hidden;`;
+    offDiv.innerHTML = '';
+
+    ABCJS.renderAbc(offId, abc, {
+      staffwidth: PRINT_SW, scale: PRINT_SCALE,
+      paddingtop: 10, paddingbottom: 10, paddingright: 16, paddingleft: 16,
+      add_classes: true,
+    });
+
+    const svg = offDiv.querySelector('svg');
+    if (!svg) { offDiv.remove(); continue; }
+
+    // Apply x-noteheads synchronously (no setTimeout) before measuring
+    _doApplyXNoteheads(offId);
+
+    // Find true content bounds via getBBox on all drawn elements
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    svg.querySelectorAll('path, line, ellipse, rect, g').forEach(el => {
+      try {
+        const bb = el.getBBox();
+        if (bb.width > 0 && bb.height > 0) {
+          minX = Math.min(minX, bb.x);
+          maxX = Math.max(maxX, bb.x + bb.width);
+          minY = Math.min(minY, bb.y);
+          maxY = Math.max(maxY, bb.y + bb.height);
+        }
+      } catch(e) {}
+    });
+
+    if (!isFinite(minX)) { offDiv.remove(); continue; }
+
+    // Set viewBox to crop to content with small padding
+    const pad = 6;
+    const vbX = minX - pad, vbY = minY - pad;
+    const vbW = (maxX - minX) + pad * 2;
+    const vbH = (maxY - minY) + pad * 2;
+    svg.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
+
+    // Remove fixed width/height attrs and any CSS transform so the SVG
+    // is purely driven by viewBox — CSS then scales it to 100% page width
+    svg.removeAttribute('width');
+    svg.removeAttribute('height');
+    svg.style.cssText = 'display:block;width:100%;height:auto;transform:none;';
+
+    // Move SVG into the render div
+    renderDiv.innerHTML = '';
+    renderDiv.style.cssText = 'width:100%;';
+    const wrap = document.getElementById(`score-render-wrap-${row}`);
+    if (wrap) wrap.style.height = '';
+    renderDiv.appendChild(svg);
+    offDiv.remove();
+  }
+});
+
+window.addEventListener('afterprint', () => {
+  renderScore();
+});
+// ── FOCUS MODE PLAYBACK ───────────────────────────────────────────────────
+let focusPlaying    = false;
+let focusSchedTimer = null;
+let focusNextTime   = 0;
+let focusSchedStep  = 0;
+
+function focusTogglePlay() {
+  focusPlaying ? focusStopPlay() : focusStartPlay();
+}
+
+function focusStartPlay() {
+  const focusMeasures = focusRowStart !== null
+    ? measures.slice(focusMeasureIdx, focusMeasureIdx + focusRowCount)
+    : [measures[focusMeasureIdx]];
+  if (!focusMeasures.length || !focusMeasures[0]) return;
+
+  const ctx = getCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+  focusSchedStep = 0;
+  focusNextTime  = ctx.currentTime + 0.007;
+  focusPlaying   = true;
+
+  // Build flat step array across all focused measures
+  const buildSteps = () => {
+    const steps = [];
+    focusMeasures.forEach(m => {
+      if (!m) return;
+      const div = m.division || 16;
+      for (let s = 0; s < div; s++) steps.push({ data: m.data, div });
+    });
+    return steps;
+  };
+
+  const focusSched = () => {
+    const steps = buildSteps();
+    if (!steps.length) return;
+    while (focusNextTime < ctx.currentTime + 0.12) {
+      const { data, div } = steps[focusSchedStep % steps.length];
+      const step = focusSchedStep % div;
+      // Play all instruments at this step
+      Object.entries(data).forEach(([id, arr]) => {
+        if (Array.isArray(arr) && arr[step] > 0) {
+          playDrum(id, arr[step], focusNextTime);
+        }
+      });
+      focusNextTime += 60 / globalBpm / (div / 4);
+      focusSchedStep++;
+    }
+  };
+
+  focusSched();
+  focusSchedTimer = setInterval(focusSched, 25);
+
+  const btn = document.getElementById('focusPlayBtn');
+  if (btn) { btn.textContent = '■ Stop'; btn.classList.add('active'); }
+}
+
+function focusStopPlay() {
+  if (focusSchedTimer) { clearInterval(focusSchedTimer); focusSchedTimer = null; }
+  focusPlaying = false;
+  const btn = document.getElementById('focusPlayBtn');
+  if (btn) { btn.textContent = '▶ Play'; btn.classList.remove('active'); }
+}
+
+</script>
+</body>
+</html>

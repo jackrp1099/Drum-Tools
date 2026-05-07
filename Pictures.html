@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pictures</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0E0E10; --bg2:#161618; --bg3:#1E1E22;
+  --border:#2E2E36; --amber:#E8A045; --amber-dim:#6A4010;
+  --text:#E8E4DC; --text2:#8A8690; --text3:#4A4850;
+  --glow:rgba(232,160,69,0.18); --glow-hi:rgba(232,160,69,0.40);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  width:100%;height:100%;overflow:hidden;
+  background:var(--bg);color:var(--text);
+  font-family:'DM Mono',monospace;
+  display:flex;flex-direction:column;
+}
+
+/* ── HEADER ── */
+#header{
+  height:52px;flex-shrink:0;
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;z-index:100;
+}
+#header-left{display:flex;align-items:baseline;gap:10px}
+#app-title{font-family:'Syne',sans-serif;font-weight:800;font-size:15px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text)}
+#app-sub{font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--text3)}
+#controls{display:flex;align-items:center;gap:6px}
+.ctrl-group{display:flex;align-items:center;border:1px solid var(--border);border-radius:5px;overflow:hidden}
+.ctrl-label{font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text3);padding:0 10px;background:var(--bg3);height:32px;display:flex;align-items:center;border-right:1px solid var(--border);white-space:nowrap}
+.ctrl-select{
+  appearance:none;-webkit-appearance:none;
+  background:var(--bg2);color:var(--text);border:none;outline:none;
+  font-family:'DM Mono',monospace;font-size:11px;padding:0 28px 0 12px;height:32px;
+  cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%234A4850' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;
+  min-width:90px;letter-spacing:0.04em;
+}
+.ctrl-select:hover{background-color:var(--bg3)}
+.ctrl-select option{background:var(--bg2)}
+.ctrl-divider{width:1px;height:28px;background:var(--border);margin:0 10px}
+
+#focusBtn{
+  font-family:'DM Mono',monospace;font-size:11px;font-weight:500;
+  letter-spacing:0.14em;text-transform:uppercase;
+  color:var(--text2);background:transparent;
+  border:1px solid var(--border);border-radius:4px;
+  padding:0 16px;height:32px;cursor:pointer;
+  transition:all 0.15s ease;white-space:nowrap;
+}
+#focusBtn:hover{border-color:var(--amber);color:var(--amber);background:var(--glow)}
+#focusBtn.active{
+  color:var(--amber);border-color:var(--amber);
+  background:var(--glow);box-shadow:0 0 12px var(--glow-hi);
+}
+
+#resetBtn{
+  font-family:'DM Mono',monospace;font-size:11px;font-weight:500;
+  letter-spacing:0.14em;text-transform:uppercase;
+  color:var(--text3);background:transparent;
+  border:1px solid var(--border);border-radius:4px;
+  padding:0 16px;height:32px;cursor:pointer;
+  transition:all 0.15s ease;
+}
+#resetBtn:hover{border-color:var(--text2);color:var(--text2)}
+
+/* ── MAIN AREA ── */
+#main{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  display:flex;flex-direction:column;align-items:center;
+  padding:28px 24px 40px;
+  position:relative;
+  user-select:none;
+}
+#main.focus-mode{ cursor:pointer; }
+
+/* ── GRID ── */
+#grid{ display:grid; gap:12px; }
+
+/* ── SQUARES ── */
+.square{
+  position:relative;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  cursor:pointer;
+  box-sizing:border-box;
+  transition:opacity 0.2s, box-shadow 0.2s, border-color 0.2s;
+  border-radius:4px;
+  overflow:hidden;
+}
+.square .img-inner{
+  position:absolute;top:0;left:0;right:0;bottom:0;
+  background-size:contain;background-repeat:no-repeat;background-position:center;
+  filter:invert(1);
+  pointer-events:none;
+}
+
+/* Focus mode visuals */
+.square.focused-col{
+  border-color:var(--amber) !important;
+  box-shadow:0 0 0 2px var(--amber), 0 0 24px var(--glow-hi);
+  opacity:1 !important;
+}
+.square.dimmed{ opacity:0.15; }
+
+/* Squares non-interactive in focus mode */
+#main.focus-mode .square{
+  cursor:default;
+  pointer-events:none;
+}
+
+/* ── RESULT IMAGE ── */
+#resultImage{
+  margin-top:24px;
+  max-width:min(1500px, 100%);
+  display:none;
+  border-radius:4px;
+}
+
+/* ── HINT ── */
+#hint{
+  margin-top:14px;
+  font-size:9px;letter-spacing:0.2em;text-transform:uppercase;
+  color:var(--text3);text-align:center;
+  pointer-events:none;min-height:14px;
+}
+</style>
+</head>
+<body>
+
+<header id="header">
+  <div id="header-left">
+    <span id="app-title">Pictures</span>
+    <span id="app-sub">Visual Selector</span>
+  </div>
+  <div id="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Columns</span>
+      <select id="columnSelector" class="ctrl-select">
+        <option value="4">4</option>
+        <option value="8">8</option>
+      </select>
+    </div>
+    <div class="ctrl-divider"></div>
+    <button id="focusBtn" onclick="toggleFocusMode()">⊙ Focus</button>
+    <button id="resetBtn" onclick="resetGrid()">↺ Reset</button>
+    <div class="ctrl-divider"></div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">BPM</span>
+      <input type="range" id="bpmSlider" min="40" max="240" value="80"
+        style="width:90px;accent-color:var(--amber);background:transparent;border:none;outline:none;cursor:pointer;height:32px;padding:0 8px;"
+        oninput="bpm=+this.value;document.getElementById('bpmVal').textContent=this.value">
+      <span id="bpmVal" style="font-size:12px;padding:0 10px;color:var(--text);min-width:28px;text-align:right;background:var(--bg2);">80</span>
+    </div>
+    <button id="playBtn" onclick="togglePlay()"
+      style="font-family:'DM Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:var(--text2);background:transparent;border:1px solid var(--border);border-radius:4px;padding:0 16px;height:32px;cursor:pointer;transition:all 0.15s ease;min-width:72px;">
+      ▶ Play
+    </button>
+  </div>
+</header>
+
+<div id="main">
+  <div id="grid"></div>
+  <img id="resultImage">
+  <div id="hint"></div>
+</div>
+
+<script>
+const imagesTop    = ["","images/img1.png","images/img2.png","images/img3.png"];
+const imagesBottom = ["","images/img1.png","images/img2.png"];
+
+const gridEl      = document.getElementById("grid");
+const selector    = document.getElementById("columnSelector");
+const resultImage = document.getElementById("resultImage");
+const hintEl      = document.getElementById("hint");
+const mainEl      = document.getElementById("main");
+const focusBtnEl  = document.getElementById("focusBtn");
+
+let squares        = [];
+let currentColumns = 4;
+let focusedCol     = 0;
+let focusMode      = false;
+
+// ── OUTPUT ───────────────────────────────────────────────────────────────
+function getColumnValue(col){
+  const top    = squares[col];
+  const bottom = squares[col + currentColumns];
+  if(top.state === 3 && bottom.state === 0) return 0;
+  if(top.state === 3 && bottom.state === 1) return 1;
+  if(top.state === 3 && bottom.state === 2) return 2;
+  return "-";
+}
+
+function updateOutput(){
+  const values = [];
+  for(let i = 0; i < currentColumns; i++) values.push(getColumnValue(i));
+  const sequence = values.join("");
+  const testImg = new Image();
+  testImg.src = "images/" + sequence + ".png";
+  testImg.onload = () => { resultImage.src = testImg.src; resultImage.style.display = "block"; };
+  testImg.onerror = () => { resultImage.style.display = "none"; };
+}
+
+// ── FOCUS VISUALS ────────────────────────────────────────────────────────
+function applyFocus(){
+  squares.forEach((sq, i) => {
+    const col = i % currentColumns;
+    if(focusMode){
+      sq.classList.toggle("focused-col", col === focusedCol);
+      sq.classList.toggle("dimmed", col !== focusedCol);
+    } else {
+      sq.classList.remove("focused-col", "dimmed");
+    }
+  });
+}
+
+// ── TOGGLE FOCUS MODE ────────────────────────────────────────────────────
+function toggleFocusMode(){
+  focusMode = !focusMode;
+  focusBtnEl.classList.toggle("active", focusMode);
+  mainEl.classList.toggle("focus-mode", focusMode);
+  hintEl.textContent = focusMode
+    ? "Left click  →  next column    ·    Right click  →  prev column"
+    : "";
+  applyFocus();
+}
+
+// ── GRID ─────────────────────────────────────────────────────────────────
+function resetGrid(){
+  squares.forEach((sq, i) => {
+    const inner = sq.querySelector(".img-inner");
+    const col = i % currentColumns;
+    if(i < currentColumns){
+      sq.state = 3;
+      inner.style.backgroundImage = `url(${imagesTop[3]})`;
+    } else {
+      const base = col % 4;
+      const st = base === 0 ? 1 : base === 2 ? 2 : 0;
+      sq.state = st;
+      inner.style.backgroundImage = st > 0 ? `url(${imagesBottom[st]})` : "";
+    }
+  });
+  focusedCol = 0;
+  applyFocus();
+  updateOutput();
+}
+
+function createSquares(columns){
+  gridEl.innerHTML = "";
+  squares = [];
+  currentColumns = columns;
+  focusedCol = 0;
+
+  const size = columns === 8 ? 160 : 200;
+  gridEl.style.gridTemplateColumns = `repeat(${columns}, ${size}px)`;
+
+  // Default pattern (4-column base, repeated for 8):
+  // Top row: all HH (state 3)
+  // Bottom row: kick on col 0 (state 1), snare on col 2 (state 2), rest empty
+  const bottomDefault = (col) => {
+    const base = col % 4; // repeat every 4
+    if (base === 0) return 1; // kick
+    if (base === 2) return 2; // snare
+    return 0;
+  };
+
+  for(let i = 0; i < columns * 2; i++){
+    const square = document.createElement("div");
+    square.classList.add("square");
+    square.style.width  = `${size}px`;
+    square.style.height = `${size}px`;
+
+    const inner = document.createElement("div");
+    inner.classList.add("img-inner");
+
+    const col = i % columns;
+
+    if(i < columns){
+      // Top row — all HH
+      square.state = 3;
+      inner.style.backgroundImage = `url(${imagesTop[3]})`;
+    } else {
+      // Bottom row — kick/snare per column
+      const st = bottomDefault(col);
+      square.state = st;
+      inner.style.backgroundImage = st > 0 ? `url(${imagesBottom[st]})` : "";
+    }
+
+    // Left click — cycle image (edit mode only)
+    square.addEventListener("click", () => {
+      if(focusMode) return;
+      if(i < currentColumns){
+        square.state = (square.state + 1) % imagesTop.length;
+        inner.style.backgroundImage = imagesTop[square.state] ? `url(${imagesTop[square.state]})` : "";
+      } else {
+        square.state = (square.state + 1) % imagesBottom.length;
+        inner.style.backgroundImage = imagesBottom[square.state] ? `url(${imagesBottom[square.state]})` : "";
+      }
+      updateOutput();
+    });
+
+    // Middle click — clear square (edit mode only)
+    square.addEventListener("auxclick", e => {
+      if(e.button === 1 && !focusMode){
+        square.state = 0;
+        inner.style.backgroundImage = "";
+        updateOutput();
+      }
+    });
+
+    square.appendChild(inner);
+    gridEl.appendChild(square);
+    squares.push(square);
+  }
+
+  applyFocus();
+  updateOutput();
+}
+
+// ── GLOBAL FOCUS NAVIGATION ──────────────────────────────────────────────
+// Attach to document so clicks anywhere on screen work in focus mode
+document.addEventListener("click", e => {
+  if(!focusMode) return;
+  // Ignore clicks on header controls
+  if(e.target.closest("#header")) return;
+  focusedCol = (focusedCol + 1) % currentColumns;
+  applyFocus();
+});
+
+document.addEventListener("contextmenu", e => {
+  if(!focusMode) return;
+  e.preventDefault();
+  focusedCol = (focusedCol - 1 + currentColumns) % currentColumns;
+  applyFocus();
+});
+
+// ── INIT ─────────────────────────────────────────────────────────────────
+createSquares(4);
+
+selector.addEventListener("change", () => {
+  createSquares(Number(selector.value));
+});
+
+// ── AUDIO ─────────────────────────────────────────────────────────────────
+// img1 = kick, img2 = snare, img3 = hi-hat
+// top row: states 1/2/3 → kick/snare/hh
+// bottom row: states 1/2 → kick/snare
+// Each column = one beat; plays all active sounds in that column simultaneously
+
+let audioCtx = null;
+let bpm = 80;
+const _bufs = {};
+
+const SAMPLE_FILES = { kick:'kick', snare:'snare', hihat:'hh' };
+
+// img state → instrument id
+const TOP_INST    = { 1:'kick', 2:'snare', 3:'hihat' };
+const BOTTOM_INST = { 1:'kick', 2:'snare' };
+
+function getCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+
+async function loadSamples() {
+  const ctx = getCtx();
+  await Promise.all(Object.entries(SAMPLE_FILES).map(async ([key, name]) => {
+    for (const ext of ['wav','mp3','ogg']) {
+      try {
+        const res = await fetch(`audio/${name}.${ext}`);
+        if (!res.ok) continue;
+        _bufs[key] = await ctx.decodeAudioData(await res.arrayBuffer());
+        return;
+      } catch(e) {}
+    }
+  }));
+}
+
+function playSample(inst, when) {
+  const ctx = getCtx();
+  if (_bufs[inst]) {
+    const src = ctx.createBufferSource();
+    src.buffer = _bufs[inst];
+    src.connect(ctx.destination);
+    src.start(when);
+    return;
+  }
+  // Synthesis fallback
+  if (inst === 'kick') {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.setValueAtTime(150,when); o.frequency.exponentialRampToValueAtTime(42,when+0.1);
+    g.gain.setValueAtTime(0.7,when); g.gain.exponentialRampToValueAtTime(0.001,when+0.32);
+    o.start(when); o.stop(when+0.35);
+  } else if (inst === 'snare') {
+    const len = ctx.sampleRate*0.18, buf = ctx.createBuffer(1,len,ctx.sampleRate);
+    const d = buf.getChannelData(0); for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const f = ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=3200;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.5,when); g.gain.exponentialRampToValueAtTime(0.001,when+0.15);
+    src.connect(f); f.connect(g); g.connect(ctx.destination); src.start(when); src.stop(when+0.18);
+  } else if (inst === 'hihat') {
+    const len = Math.floor(ctx.sampleRate*0.07), buf = ctx.createBuffer(1,len,ctx.sampleRate);
+    const d = buf.getChannelData(0); for(let i=0;i<len;i++) d[i]=Math.random()*2-1;
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const f = ctx.createBiquadFilter(); f.type='highpass'; f.frequency.value=8500;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.22,when); g.gain.exponentialRampToValueAtTime(0.001,when+0.07);
+    src.connect(f); f.connect(g); g.connect(ctx.destination); src.start(when); src.stop(when+0.08);
+  }
+}
+
+// ── PLAYBACK SCHEDULER ─────────────────────────────────────────────────────
+let playing    = false;
+let schedTimer = null;
+let nextBeatTime = 0;
+let beatIdx    = 0;
+const LOOKAHEAD = 0.12;
+const SCHED_INT = 25;
+
+function beatDur() { return 60 / bpm; }
+
+function schedBeat(when, col) {
+  const topSq    = squares[col];
+  const bottomSq = squares[col + currentColumns];
+
+  // Fire sounds for whatever is active in this column
+  if (topSq) {
+    const inst = TOP_INST[topSq.state];
+    if (inst) playSample(inst, when);
+  }
+  if (bottomSq) {
+    const inst = BOTTOM_INST[bottomSq.state];
+    if (inst) playSample(inst, when);
+  }
+
+  // Advance focus highlight to this column in focus mode
+  if (focusMode) {
+    const delay = (when - getCtx().currentTime) * 1000;
+    setTimeout(() => { focusedCol = col; applyFocus(); }, Math.max(0, delay));
+  }
+}
+
+function scheduler() {
+  const ctx = getCtx();
+  while (nextBeatTime < ctx.currentTime + LOOKAHEAD) {
+    schedBeat(nextBeatTime, beatIdx % currentColumns);
+    nextBeatTime += beatDur();
+    beatIdx++;
+  }
+}
+
+function togglePlay() {
+  playing ? stopPlay() : startPlay();
+}
+
+function startPlay() {
+  const ctx = getCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+  playing = true;
+  beatIdx = 0;
+  nextBeatTime = ctx.currentTime + 0.05;
+  schedTimer = setInterval(scheduler, SCHED_INT);
+  const btn = document.getElementById('playBtn');
+  btn.textContent = '■ Stop';
+  btn.style.color = 'var(--amber)';
+  btn.style.borderColor = 'var(--amber)';
+  btn.style.background = 'var(--glow)';
+}
+
+function stopPlay() {
+  if (schedTimer) { clearInterval(schedTimer); schedTimer = null; }
+  playing = false;
+  const btn = document.getElementById('playBtn');
+  btn.textContent = '▶ Play';
+  btn.style.color = '';
+  btn.style.borderColor = '';
+  btn.style.background = '';
+}
+
+window.addEventListener('click', () => { getCtx(); loadSamples(); }, {once:true});
+window.addEventListener('keydown', () => { getCtx(); loadSamples(); }, {once:true});
+</script>
+
+</body>
+</html>

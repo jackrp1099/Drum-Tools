@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Around the Kit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0E0E10; --bg2:#161618; --bg3:#1E1E22;
+  --border:#2E2E36; --amber:#E8A045; --amber-dim:#6A4010;
+  --text:#E8E4DC; --text2:#8A8690; --text3:#4A4850;
+  --glow:rgba(232,160,69,0.18); --glow-hi:rgba(232,160,69,0.40);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;display:flex;flex-direction:column}
+#header{height:52px;flex-shrink:0;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:100}
+#header-left{display:flex;align-items:baseline;gap:10px}
+#app-title{font-family:'Syne',sans-serif;font-weight:800;font-size:15px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text)}
+#app-sub{font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--text3)}
+#controls{display:flex;align-items:center;gap:6px}
+.ctrl-group{display:flex;align-items:center;border:1px solid var(--border);border-radius:5px;overflow:hidden}
+.ctrl-label{font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text3);padding:0 10px;background:var(--bg3);height:32px;display:flex;align-items:center;border-right:1px solid var(--border);white-space:nowrap}
+.ctrl-select{appearance:none;-webkit-appearance:none;background:var(--bg2);color:var(--text);border:none;outline:none;font-family:'DM Mono',monospace;font-size:11px;padding:0 28px 0 12px;height:32px;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%234A4850' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;min-width:110px;letter-spacing:0.04em}
+.ctrl-select:hover{background-color:var(--bg3)}
+.ctrl-select option{background:var(--bg2)}
+.ctrl-divider{width:1px;height:28px;background:var(--border);margin:0 10px}
+
+/* Mode buttons */
+.mode-btn{
+  font-family:'DM Mono',monospace;font-size:11px;font-weight:500;
+  letter-spacing:0.14em;text-transform:uppercase;
+  color:var(--text2);background:transparent;
+  border:1px solid var(--border);border-radius:4px;
+  padding:0 16px;height:32px;cursor:pointer;transition:all 0.15s ease;
+}
+.mode-btn:hover{border-color:var(--amber);color:var(--amber);background:var(--glow)}
+.mode-btn.active{color:var(--amber);border-color:var(--amber);background:var(--glow);box-shadow:0 0 12px var(--glow-hi);}
+
+#canvas-wrap{flex:1;position:relative;overflow:hidden}
+canvas{display:block;position:absolute;top:0;left:0}
+
+#randomizeBtn{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);z-index:100;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:var(--amber);background:transparent;border:1px solid var(--amber-dim);border-radius:4px;padding:10px 24px;cursor:pointer;transition:all 0.18s ease}
+#randomizeBtn:hover{background:var(--glow);border-color:var(--amber);box-shadow:0 0 16px var(--glow-hi);color:var(--text)}
+#randomizeBtn:active{transform:translateX(-50%) scale(0.97)}
+
+#hint{position:absolute;bottom:72px;left:50%;transform:translateX(-50%);font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text3);white-space:nowrap;pointer-events:none;transition:opacity 0.2s;min-height:14px;}
+
+/* Custom difficulty sidebar */
+#customSidebar{
+  position:absolute;right:0;top:0;bottom:0;width:200px;
+  background:var(--bg2);border-left:1px solid var(--border);
+  z-index:50;display:none;flex-direction:column;
+  padding:20px 16px;gap:10px;
+}
+#customSidebar.visible{display:flex;}
+#customSidebar-title{font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--text3);padding-bottom:8px;border-bottom:1px solid var(--border);}
+.custom-check{display:flex;align-items:center;gap:10px;cursor:pointer;padding:6px 8px;border-radius:4px;transition:background 0.12s;}
+.custom-check:hover{background:var(--bg3);}
+.custom-check input{appearance:none;-webkit-appearance:none;width:16px;height:16px;border:1px solid var(--border);border-radius:3px;background:var(--bg3);cursor:pointer;flex-shrink:0;position:relative;transition:all 0.12s;}
+.custom-check input:checked{background:var(--amber);border-color:var(--amber-dim);}
+.custom-check input:checked::after{content:'';position:absolute;top:2px;left:5px;width:4px;height:8px;border:2px solid var(--bg);border-top:none;border-left:none;transform:rotate(45deg);}
+.custom-check-label{font-size:11px;color:var(--text2);letter-spacing:0.04em;display:flex;flex-direction:column;gap:1px;}
+.custom-check-label span{font-size:9px;color:var(--text3);letter-spacing:0.1em;}
+</style>
+</head>
+<body>
+<header id="header">
+  <div id="header-left">
+    <span id="app-title">Around the Kit</span>
+    <span id="app-sub">Rhythm Trainer</span>
+  </div>
+  <div id="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Color</span>
+      <select id="colorPicker" class="ctrl-select">
+        <option value="white">White</option>
+        <option value="#E8A045">Amber</option>
+        <option value="#E85045">Red</option>
+        <option value="#4580E8">Blue</option>
+        <option value="#45C878">Green</option>
+        <option value="#E8E045">Yellow</option>
+        <option value="#E845C8">Pink</option>
+        <option value="#A845E8">Purple</option>
+        <option value="rainbow">Rainbow</option>
+      </select>
+    </div>
+    <div class="ctrl-divider"></div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Level</span>
+      <select id="difficultyPicker" class="ctrl-select">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+        <option value="custom">Custom</option>
+      </select>
+    </div>
+    <div class="ctrl-divider"></div>
+    <button id="focusBtn"  class="mode-btn" onclick="toggleFocus()">⊙ Focus</button>
+    <button id="linearBtn" class="mode-btn" onclick="toggleLinear()">⇔ Linear</button>
+    <div class="ctrl-divider"></div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">BPM</span>
+      <input type="range" id="bpmSlider" min="40" max="240" value="80"
+        style="width:90px;accent-color:var(--amber);background:transparent;border:none;outline:none;cursor:pointer;height:32px;padding:0 8px;"
+        oninput="bpm=+this.value;document.getElementById('bpmVal').textContent=this.value">
+      <span id="bpmVal" style="font-size:12px;padding:0 10px;color:var(--text);min-width:28px;text-align:right;background:var(--bg2);">80</span>
+    </div>
+    <button id="playBtn" class="mode-btn" onclick="togglePlay()" style="min-width:72px;">▶ Play</button>
+  </div>
+</header>
+
+<div id="canvas-wrap">
+  <canvas id="canvas"></canvas>
+
+  <!-- Custom difficulty sidebar -->
+  <div id="customSidebar">
+    <div id="customSidebar-title">Rhythm Options</div>
+    <label class="custom-check">
+      <input type="checkbox" id="chk0" checked onchange="updateCustomStates()">
+      <div class="custom-check-label">x</div>
+    </label>
+    <label class="custom-check">
+      <input type="checkbox" id="chk1" checked onchange="updateCustomStates()">
+      <div class="custom-check-label">x +</div>
+    </label>
+    <label class="custom-check">
+      <input type="checkbox" id="chk2" checked onchange="updateCustomStates()">
+      <div class="custom-check-label">x e + a</div>
+    </label>
+    <label class="custom-check">
+      <input type="checkbox" id="chk3" onchange="updateCustomStates()">
+      <div class="custom-check-label">x e +</div>
+    </label>
+    <label class="custom-check">
+      <input type="checkbox" id="chk4" onchange="updateCustomStates()">
+      <div class="custom-check-label">x &nbsp;&nbsp;+ a</div>
+    </label>
+  </div>
+
+  <div id="hint"></div>
+  <button id="randomizeBtn">⇄ Randomize</button>
+</div>
+
+<script>
+const canvas       = document.getElementById("canvas");
+const ctx          = canvas.getContext("2d");
+const colorPicker  = document.getElementById("colorPicker");
+const diffPicker   = document.getElementById("difficultyPicker");
+const randomizeBtn = document.getElementById("randomizeBtn");
+const hintEl       = document.getElementById("hint");
+
+let circles      = [];
+let radius;
+let currentColor = "white";
+let maxState     = 2;
+let customStates = [0,1,2];
+let isCustomMode = false;
+let isLinearMode = false;
+let focusMode    = false;
+let focusedIdx   = 0;   // which pad is currently highlighted in focus mode
+
+// ── LAYOUT ──────────────────────────────────────────────────────────────
+function getCirclePositions(W, H) {
+  const sidebarW = isCustomMode ? 200 : 0;
+  const usableW  = W - sidebarW;
+  const cx       = usableW / 2;
+
+  if (isLinearMode) {
+    const y       = H * 0.45;
+    const spacing = usableW / 5;
+    return [
+      {x: spacing*1, y},
+      {x: spacing*2, y},
+      {x: spacing*3, y},
+      {x: spacing*4, y},
+    ];
+  } else {
+    const bottomY = H*0.68, topY = H*0.30;
+    return [
+      {x: cx - usableW*0.25, y: bottomY},
+      {x: cx - usableW*0.12, y: topY   },
+      {x: cx + usableW*0.12, y: topY   },
+      {x: cx + usableW*0.25, y: bottomY},
+    ];
+  }
+}
+
+function resizeCanvas() {
+  const wrap = document.getElementById("canvas-wrap");
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  canvas.width = W; canvas.height = H;
+  canvas.style.width = W+"px"; canvas.style.height = H+"px";
+  radius = Math.min(W - (isCustomMode?200:0), H) * 0.20;
+
+  const positions = getCirclePositions(W, H);
+  if (circles.length === 4) {
+    circles.forEach((c,i) => { c.x = positions[i].x; c.y = positions[i].y; });
+  } else {
+    circles = positions.map(p => ({x:p.x, y:p.y, state:0}));
+  }
+}
+
+// ── DRAW ────────────────────────────────────────────────────────────────
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Vignette
+  const vg = ctx.createRadialGradient(canvas.width/2,canvas.height/2,canvas.height*0.2,canvas.width/2,canvas.height/2,canvas.height*0.85);
+  vg.addColorStop(0,"rgba(0,0,0,0)");
+  vg.addColorStop(1,"rgba(0,0,0,0.55)");
+  ctx.fillStyle = vg; ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Linear track line
+  if (isLinearMode && circles.length===4) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,0.06)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(circles[0].x, circles[0].y);
+    circles.forEach(c => ctx.lineTo(c.x, c.y));
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  const t = Date.now() * 0.002;
+  circles.forEach((c,i) => { drawCircle(c,i); drawSymbol(c,t); });
+  requestAnimationFrame(draw);
+}
+
+function drawCircle(c, i) {
+  const isFocused = focusMode && i === focusedIdx;
+  const isDimmed  = focusMode && i !== focusedIdx;
+
+  ctx.save();
+
+  // Amber glow ring for focused pad
+  if (isFocused) {
+    ctx.beginPath(); ctx.arc(c.x, c.y, radius+8, 0, Math.PI*2);
+    ctx.strokeStyle = `rgba(232,160,69,0.7)`; ctx.lineWidth = 3; ctx.stroke();
+    // Outer soft glow
+    const glow = ctx.createRadialGradient(c.x,c.y,radius,c.x,c.y,radius+40);
+    glow.addColorStop(0,"rgba(232,160,69,0.22)");
+    glow.addColorStop(1,"rgba(232,160,69,0)");
+    ctx.beginPath(); ctx.arc(c.x,c.y,radius+40,0,Math.PI*2);
+    ctx.fillStyle = glow; ctx.fill();
+  }
+
+  // Body fill
+  const pg = ctx.createRadialGradient(c.x-radius*0.2,c.y-radius*0.2,radius*0.05,c.x,c.y,radius);
+  pg.addColorStop(0, isFocused ? "#2A2018" : "#1C1C20");
+  pg.addColorStop(1, "#0E0E10");
+  ctx.globalAlpha = isDimmed ? 0.2 : 1.0;
+  ctx.beginPath(); ctx.arc(c.x,c.y,radius,0,Math.PI*2);
+  ctx.fillStyle = pg; ctx.fill();
+
+  // Ring stroke
+  ctx.beginPath(); ctx.arc(c.x,c.y,radius,0,Math.PI*2);
+  ctx.strokeStyle = isFocused
+    ? `rgba(232,160,69,0.9)`
+    : "rgba(180,170,160,0.30)";
+  ctx.lineWidth = isFocused ? 2.5 : 1.5; ctx.stroke();
+
+  // Rim highlight
+  ctx.beginPath(); ctx.arc(c.x,c.y,radius-3,Math.PI*1.1,Math.PI*1.75);
+  ctx.strokeStyle="rgba(255,255,255,0.06)"; ctx.lineWidth=2; ctx.stroke();
+
+  ctx.restore();
+}
+
+function getColor(t, offset=0) {
+  if (currentColor !== "rainbow") return currentColor;
+  return `rgb(${Math.floor(127*(Math.sin(t+offset)+1))},${Math.floor(127*(Math.sin(t+offset+2)+1))},${Math.floor(127*(Math.sin(t+offset+4)+1))})`;
+}
+
+function drawNoteHead(x,y,r) {
+  ctx.save(); ctx.beginPath();
+  ctx.ellipse(x,y,r*1.15,r*0.85,-0.35,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+function drawStem(x,y,r) {
+  const sw=Math.max(1.5,r*0.30); ctx.lineWidth=sw; ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(x,y-r*0.6); ctx.lineTo(x,y-radius*0.52); ctx.stroke(); ctx.lineCap="butt";
+}
+function drawBeam(x1,x2,y,thickness=4) {
+  ctx.lineWidth=thickness; ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(x1,y); ctx.lineTo(x2,y); ctx.stroke();
+  ctx.lineWidth=2; ctx.lineCap="butt";
+}
+
+function drawSymbol(c, t) {
+  const isDimmed = focusMode && circles.indexOf(c) !== focusedIdx;
+  ctx.save();
+  ctx.globalAlpha = isDimmed ? 0.2 : 1.0;
+
+  const col = getColor(t, c.x*0.01);
+  ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=2;
+  const x=c.x, y=c.y;
+  const noteY=y+0.18*radius, r=0.075*radius, sp=radius*0.19;
+  const stemTop=noteY-radius*0.52;
+  const beam1Y=stemTop+1, beam2Y=stemTop+radius*0.07;
+  const sx=nx=>nx+r*0.75;
+
+  if(c.state===0){ drawNoteHead(x,noteY,r*1.4); drawStem(sx(x),noteY,r*1.4); }
+  else if(c.state===1){
+    const xs=[x-sp,x+sp]; xs.forEach(nx=>{drawNoteHead(nx,noteY,r);drawStem(sx(nx),noteY,r);});
+    drawBeam(sx(xs[0]),sx(xs[1]),beam1Y);
+  }
+  else if(c.state===2){
+    const xs=[-1.5,-0.5,0.5,1.5].map(i=>x+i*sp); xs.forEach(nx=>{drawNoteHead(nx,noteY,r);drawStem(sx(nx),noteY,r);});
+    drawBeam(sx(xs[0]),sx(xs[3]),beam1Y); drawBeam(sx(xs[0]),sx(xs[3]),beam2Y);
+  }
+  else if(c.state===3){
+    const xs=[-1.5,-0.5,0.5].map(i=>x+i*sp); xs.forEach(nx=>{drawNoteHead(nx,noteY,r);drawStem(sx(nx),noteY,r);});
+    drawBeam(sx(xs[0]),sx(xs[2]),beam1Y); drawBeam(sx(xs[0]),sx(xs[1]),beam2Y);
+  }
+  else if(c.state===4){
+    const xs=[-1.5,0.5,1.5].map(i=>x+i*sp); xs.forEach(nx=>{drawNoteHead(nx,noteY,r);drawStem(sx(nx),noteY,r);});
+    drawBeam(sx(xs[0]),sx(xs[2]),beam1Y); drawBeam(sx(xs[1]),sx(xs[2]),beam2Y);
+  }
+
+  // Single-line label: beat number + subdivision pattern
+  const beatNum = circles.indexOf(c) + 1;
+  const subLabels = ["", " +", " e + a", " e +  ", "   + a"];
+  const label = String(beatNum) + subLabels[c.state];
+  ctx.font = `${radius * 0.10}px 'DM Mono', monospace`;
+  ctx.fillStyle = `rgba(255,255,255,${isDimmed?0.15:1.0})`;
+  ctx.textAlign = "center";
+  ctx.fillText(label, x, y + radius + radius * 0.20);
+  ctx.restore();
+}
+
+// ── AVAILABLE STATES ─────────────────────────────────────────────────────
+function getAvailableStates() {
+  if (isCustomMode) return customStates.length > 0 ? customStates : [0];
+  return Array.from({length:maxState+1},(_,i)=>i);
+}
+function nextState(current) {
+  const states = getAvailableStates();
+  const idx = states.indexOf(current);
+  return states[(idx+1) % states.length];
+}
+
+// ── FOCUS MODE ────────────────────────────────────────────────────────────
+function toggleFocus() {
+  focusMode = !focusMode;
+  document.getElementById('focusBtn').classList.toggle('active', focusMode);
+  hintEl.textContent = focusMode
+    ? "Left click  →  next pad    ·    Right click  →  prev pad"
+    : "";
+}
+
+// Global click handlers for focus navigation — capture anywhere on screen
+document.addEventListener("click", e => {
+  if (!focusMode) return;
+  if (e.target.closest("#header") || e.target.closest("#customSidebar") || e.target.closest("#randomizeBtn")) return;
+  focusedIdx = (focusedIdx + 1) % circles.length;
+});
+
+document.addEventListener("contextmenu", e => {
+  if (!focusMode) return;
+  e.preventDefault();
+  if (e.target.closest("#header") || e.target.closest("#customSidebar")) return;
+  focusedIdx = (focusedIdx - 1 + circles.length) % circles.length;
+});
+
+// ── PAD CLICK (edit mode only) ────────────────────────────────────────────
+canvas.addEventListener("click", e => {
+  if (focusMode) return; // locked in focus mode
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  circles.forEach((c,i) => {
+    if (Math.hypot(mx-c.x, my-c.y) < radius) {
+      c.state = nextState(c.state);
+    }
+  });
+});
+
+// ── CONTROLS ─────────────────────────────────────────────────────────────
+function toggleLinear() {
+  isLinearMode = !isLinearMode;
+  document.getElementById('linearBtn').classList.toggle('active', isLinearMode);
+  resizeCanvas();
+}
+
+function updateCustomStates() {
+  customStates = [];
+  for (let i = 0; i < 5; i++) {
+    if (document.getElementById(`chk${i}`).checked) customStates.push(i);
+  }
+  if (customStates.length === 0) customStates = [0];
+  circles.forEach(c => { if (!customStates.includes(c.state)) c.state = customStates[0]; });
+}
+
+colorPicker.onchange = () => { currentColor = colorPicker.value; };
+
+diffPicker.onchange = () => {
+  const val = diffPicker.value;
+  isCustomMode = val === 'custom';
+  document.getElementById('customSidebar').classList.toggle('visible', isCustomMode);
+  if (!isCustomMode) {
+    maxState = {easy:1, medium:2, hard:4}[val] || 2;
+    circles.forEach(c => { c.state = Math.min(c.state, maxState); });
+  } else {
+    updateCustomStates();
+  }
+  resizeCanvas();
+};
+
+randomizeBtn.onclick = () => {
+  const states = getAvailableStates();
+  circles.forEach(c => { c.state = states[Math.floor(Math.random() * states.length)]; });
+};
+
+window.onresize = resizeCanvas;
+resizeCanvas();
+draw();
+
+// ── AUDIO ────────────────────────────────────────────────────────────────
+let audioCtx = null;
+let bpm = 80;
+const SAMPLE_MAP = { snare:'snare', tom1:'tom1', tom2:'tom2', tom3:'tom3' };
+const PAD_INST   = ['snare','tom1','tom2','tom3']; // circle 0–3
+const _bufs = {};
+
+function getCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+
+async function loadSamples() {
+  const ctx = getCtx();
+  await Promise.all(Object.entries(SAMPLE_MAP).map(async ([key, name]) => {
+    for (const ext of ['wav','mp3','ogg']) {
+      try {
+        const res = await fetch(`audio/${name}.${ext}`);
+        if (!res.ok) continue;
+        _bufs[key] = await ctx.decodeAudioData(await res.arrayBuffer());
+        return;
+      } catch(e) {}
+    }
+  }));
+}
+
+function playSample(inst, when, gain=1.0) {
+  const ctx = getCtx();
+  if (_bufs[inst]) {
+    const src = ctx.createBufferSource();
+    src.buffer = _bufs[inst];
+    const g = ctx.createGain(); g.gain.value = gain;
+    src.connect(g); g.connect(ctx.destination);
+    src.start(when);
+  } else {
+    // Synthesis fallback
+    synthDrum(inst, when, gain);
+  }
+}
+
+function synthDrum(inst, when, gain) {
+  const ctx = getCtx();
+  if (inst === 'snare') {
+    const len = ctx.sampleRate * 0.18;
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i=0;i<len;i++) d[i]=Math.random()*2-1;
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const f = ctx.createBiquadFilter(); f.type='bandpass'; f.frequency.value=3200; f.Q.value=0.8;
+    const g = ctx.createGain(); g.gain.setValueAtTime(gain*0.5,when); g.gain.exponentialRampToValueAtTime(0.001,when+0.15);
+    src.connect(f); f.connect(g); g.connect(ctx.destination); src.start(when); src.stop(when+0.18);
+  } else {
+    const freqs = {tom1:210, tom2:165, tom3:105};
+    const freq = freqs[inst]||150;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.setValueAtTime(freq,when);
+    o.frequency.exponentialRampToValueAtTime(freq*0.48,when+0.3);
+    g.gain.setValueAtTime(gain*0.5,when); g.gain.exponentialRampToValueAtTime(0.001,when+0.3);
+    o.start(when); o.stop(when+0.32);
+  }
+}
+
+// ── PLAYBACK SCHEDULER ────────────────────────────────────────────────────
+// Each pad plays its rhythm independently, cycling through beats 1–4.
+// In focus mode the amber highlight follows the currently playing pad+beat.
+
+// Rhythm patterns: which 16th-note slots (0–15) within a bar fire for each state
+// Bar = 4 beats × 4 slots (16 sixteenth notes)
+// State 0 = quarter (slot 0 of each beat = 0,4,8,12)
+// State 1 = 8ths    (slots 0,2 of each beat = 0,2,4,6,8,10,12,14)
+// State 2 = 16ths   (all 16 slots)
+// State 3 = x e +   (slots 0,1,2 of each beat)
+// State 4 = x + a   (slots 0,2,3 of each beat)
+const BEAT_SLOTS = [
+  [0],        // quarter: beat marker only
+  [0,2],      // 8th: beat + &
+  [0,1,2,3],  // 16th: all four
+  [0,1,2],    // x e +: first three
+  [0,2,3],    // x + a: last three
+];
+
+let playing    = false;
+let schedTimer = null;
+let nextSlotTime = 0;   // AudioContext time of next 16th note
+let slotIdx    = 0;     // which 16th-note slot we're on (0–15 cycling)
+const LOOKAHEAD = 0.12; // seconds ahead to schedule
+const SCHED_INT = 25;   // ms interval
+
+function slotDur() { return 60 / bpm / 4; } // duration of one 16th note
+
+function scheduleSlot(when, slot) {
+  const beat    = Math.floor(slot / 4);  // 0–3
+  const subslot = slot % 4;              // position within beat (0–3)
+
+  // Only the pad that owns this beat plays
+  const c = circles[beat];
+  if (c) {
+    const pattern = BEAT_SLOTS[c.state] || [0];
+    if (pattern.includes(subslot)) {
+      playSample(PAD_INST[beat], when);
+    }
+  }
+
+  // In focus mode advance the highlight to the current beat
+  if (focusMode && subslot === 0) {
+    const delay = (when - getCtx().currentTime) * 1000;
+    setTimeout(() => { focusedIdx = beat; }, Math.max(0, delay));
+  }
+}
+
+function scheduler() {
+  const ctx = getCtx();
+  while (nextSlotTime < ctx.currentTime + LOOKAHEAD) {
+    scheduleSlot(nextSlotTime, slotIdx % 16);
+    nextSlotTime += slotDur();
+    slotIdx++;
+  }
+}
+
+function togglePlay() {
+  if (playing) {
+    stopPlay();
+  } else {
+    startPlay();
+  }
+}
+
+function startPlay() {
+  const ctx = getCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+  playing = true;
+  slotIdx = 0;
+  nextSlotTime = ctx.currentTime + 0.05;
+  schedTimer = setInterval(scheduler, SCHED_INT);
+  const btn = document.getElementById('playBtn');
+  btn.textContent = '■ Stop'; btn.classList.add('active');
+}
+
+function stopPlay() {
+  if (schedTimer) { clearInterval(schedTimer); schedTimer = null; }
+  playing = false;
+  const btn = document.getElementById('playBtn');
+  btn.textContent = '▶ Play'; btn.classList.remove('active');
+}
+
+// Load samples on first interaction
+window.addEventListener('click', () => { getCtx(); loadSamples(); }, {once:true});
+window.addEventListener('keydown', () => { getCtx(); loadSamples(); }, {once:true});
+</script>
+</body>
+</html>
