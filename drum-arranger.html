@@ -4186,20 +4186,27 @@ let beatLibraries = {
 // Function to parse beat library text files
 function parseBeatLibrary(text) {
   const beats = [];
-  // Match lines with beat patterns (16-digit codes)
-  // Handles various formats: beat: "code" or just plain code
-  const beatPattern = /["']?([0-9]{16})["']?/g;
-  let match;
-  let found = [];
+  // Match beat patterns more carefully
+  // Looks for: beat: "XXXXXXXX..." or just "XXXXXXXX..." or just XXXXXXXX...
+  const patterns = [
+    /beat:\s*["']([0-9]{16})["']/g,        // beat: "code"
+    /["']([0-9]{16})["']/g,                 // "code" or 'code'
+    /:\s*([0-9]{16})[,\s\}]/g              // : code, or : code } or : code \n
+  ];
   
-  while ((match = beatPattern.exec(text)) !== null) {
-    const code = match[1];
-    // Only add if we haven't seen it before (avoid duplicates)
-    if (!found.includes(code)) {
-      beats.push({ beat: code, enabled: true });
-      found.push(code);
+  let found = new Set();  // Use Set for faster duplicate detection
+  
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const code = match[1];
+      if (!found.has(code)) {
+        beats.push({ beat: code, enabled: true });
+        found.add(code);
+      }
     }
   }
+  
   return beats;
 }
 
@@ -4212,65 +4219,86 @@ async function loadBeatLibraries() {
       hard: 'hard.txt'
     };
     
+    console.log('🔍 Starting beat library loading...');
+    console.log('Page URL:', window.location.href);
+    
     // Try multiple path strategies
     const pathStrategies = [
       (file) => './' + file,                    // Relative from current dir
       (file) => file,                            // Direct name
-      (file) => window.location.origin + '/' + file,  // From domain root
+      (file) => window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/')) + '/' + file,  // Relative to current path
+      (file) => window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/')) + '/' + file,  // Full path
     ];
     
     for (const [key, filename] of Object.entries(files)) {
       let loaded = false;
       let loadedCount = 0;
+      let lastError = null;
       
       for (const pathFn of pathStrategies) {
         if (loaded) break;
         
         try {
           const filePath = pathFn(filename);
-          console.log(`Attempting to load from: ${filePath}`);
+          console.log(`  Trying: ${filePath}`);
           
           const response = await fetch(filePath, { 
             method: 'GET',
-            headers: { 'Accept': 'text/plain' }
+            headers: { 'Accept': 'text/plain' },
+            cache: 'no-cache'  // Prevent caching issues
           });
           
           if (response.ok) {
             const text = await response.text();
+            console.log(`    → Got file (${text.length} bytes)`);
+            
             const parsedBeats = parseBeatLibrary(text);
+            console.log(`    → Parsed ${parsedBeats.length} beats`);
             
             if (parsedBeats.length > 0) {
               beatLibraries[key] = parsedBeats;
               loadedCount = parsedBeats.length;
-              console.log(`✓ Loaded ${loadedCount} beats from ${filename}`);
+              console.log(`✓ LOADED: ${loadedCount} beats from ${filename}`);
               loaded = true;
+            } else {
+              console.log(`    ⚠ File parsed but no beats found`);
             }
+          } else {
+            lastError = `HTTP ${response.status}`;
           }
         } catch (e) {
+          lastError = e.message;
           // Try next strategy
         }
       }
       
       if (!loaded || loadedCount === 0) {
-        console.warn(`⚠ Could not load ${filename} from files, using fallback`);
+        console.warn(`⚠ ${filename}: Could not load from files. Last error: ${lastError}`);
       }
     }
     
+    // Report final state
+    console.log('📊 Final Library State:');
+    console.log(`  Easy: ${beatLibraries.easy.length} beats`);
+    console.log(`  Med: ${beatLibraries.med.length} beats`);
+    console.log(`  Hard: ${beatLibraries.hard.length} beats`);
+    
     // If nothing loaded, use fallback
     if (beatLibraries.easy.length === 0 || beatLibraries.med.length === 0 || beatLibraries.hard.length === 0) {
-      console.log('Using fallback libraries...');
+      console.log('📦 Using fallback libraries...');
       loadFallbackLibraries();
+      console.log('✓ Fallback loaded');
     }
     
   } catch (e) {
-    console.error('Error in loadBeatLibraries:', e);
+    console.error('❌ Error in loadBeatLibraries:', e);
     loadFallbackLibraries();
   }
 }
 
 // Reload beat libraries - can be called manually by user
 async function reloadBeatLibraries() {
-  console.log('Reloading beat libraries...');
+  console.log('🔄 Reloading beat libraries...');
   // Clear current libraries
   beatLibraries = {
     easy: [],
@@ -4283,7 +4311,14 @@ async function reloadBeatLibraries() {
   const easy = beatLibraries.easy.length;
   const med = beatLibraries.med.length;
   const hard = beatLibraries.hard.length;
-  alert(`Libraries reloaded!\n\nEasy: ${easy} beats\nMed: ${med} beats\nHard: ${hard} beats`);
+  
+  console.log('✓ Reload complete');
+  console.log(`  Easy: ${easy} beats`);
+  console.log(`  Med: ${med} beats`);
+  console.log(`  Hard: ${hard} beats`);
+  
+  const msg = `Libraries reloaded!\n\n📚 Easy: ${easy} beats\n📚 Med: ${med} beats\n📚 Hard: ${hard} beats\n\nCheck console for details.`;
+  alert(msg);
 }
 
 // Fallback libraries (embedded for offline/development use)
@@ -5129,7 +5164,16 @@ function ggConfetti() {
 function ggCheck() {
   if (!ggAnswerData) { return; }
   ggApplyHighlights('check');
-  // Gray out after one use (easy and medium)
+  
+  // Make sure reveal button is enabled
+  const revealBtn = document.getElementById('ggRevealBtn');
+  if (revealBtn && !ggRevealed) {
+    revealBtn.disabled = false;
+    revealBtn.style.opacity = '1';
+    revealBtn.style.cursor = 'pointer';
+  }
+  
+  // Gray out check button after one use (easy and medium)
   const btn = document.getElementById('ggCheckBtn');
   if (btn) {
     btn.disabled = true;
