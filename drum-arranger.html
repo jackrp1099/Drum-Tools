@@ -460,30 +460,45 @@ select.mselect:disabled {
 }
 input[type=range].bpm-slider {
   -webkit-appearance: none;
-  width: 130px;
-  height: 5px;
+  width: 280px;
+  height: 12px;
   background: var(--border);
-  border-radius: 3px;
+  border-radius: 6px;
   outline: none;
   cursor: pointer;
 }
 input[type=range].bpm-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 20px; height: 20px;
+  width: 32px; height: 32px;
   background: var(--red);
   border-radius: 50%;
+  cursor: grab;
+  box-shadow: 0 2px 8px rgba(184,48,48,0.3);
+  transition: box-shadow 0.12s;
+}
+input[type=range].bpm-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  box-shadow: 0 4px 12px rgba(184,48,48,0.5);
 }
 input[type=range].bpm-slider::-moz-range-thumb {
-  width: 20px; height: 20px;
+  width: 32px; height: 32px;
   background: var(--red);
   border-radius: 50%;
   border: none;
+  cursor: grab;
+  box-shadow: 0 2px 8px rgba(184,48,48,0.3);
+  transition: box-shadow 0.12s;
+}
+input[type=range].bpm-slider::-moz-range-thumb:active {
+  cursor: grabbing;
+  box-shadow: 0 4px 12px rgba(184,48,48,0.5);
 }
 .bpm-num {
-  font-size: 15px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--red);
-  min-width: 34px;
+  min-width: 48px;
+  text-align: center;
 }
 
 /* ── GRID ── */
@@ -868,7 +883,7 @@ table.edit-grid td.ecell:hover .nd.xhead { transform: rotate(45deg) scale(1.15);
   position: fixed;
   inset: 0;
   z-index: 250;
-  background: var(--paper);
+  background: linear-gradient(135deg, #F9F4ED 0%, #F5EAE0 50%, #F2E5D9 100%);
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -1347,8 +1362,17 @@ table.edit-grid td.ecell:hover .nd.xhead { transform: rotate(45deg) scale(1.15);
 #ggPlayHiddenBtn:hover { background: #6E3A90; }
 #ggPlayAnswerBtn { color: white; background: #28703A; border: 1px solid #1A5028; }
 #ggPlayAnswerBtn:hover { background: #2E8844; }
-#ggResetBtn { color: var(--ink2); background: transparent; border: 1px solid var(--border); }
-#ggResetBtn:hover { border-color: var(--ink3); color: var(--ink); }
+#ggResetBtn { 
+  color: #A85D3A; 
+  background: rgba(232, 160, 69, 0.15);
+  border: 1.5px solid #B87D4A; 
+  font-weight: 600;
+}
+#ggResetBtn:hover { 
+  background: rgba(232, 160, 69, 0.25); 
+  border-color: #D4934D;
+  color: #8B4513;
+}
 
 /* Set Groove Modal */
 #setGrooveModal {
@@ -1699,10 +1723,13 @@ table.edit-grid td.ecell:hover .nd.xhead { transform: rotate(45deg) scale(1.15);
       <div class="gg-panel-controls">
         <button id="ggPlayGuessBtn" onclick="ggTogglePlay('guess')">▶ Play</button>
         <button id="ggPlayHiddenBtn" onclick="ggTogglePlay('answer')">▶ Play Hidden</button>
-        <button id="ggCheckBtn" onclick="ggCheck()">✓ Check</button>
       </div>
-      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;">
-        <span style="font-family:var(--mono);font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">BPM</span>
+      <div class="gg-panel-controls" style="margin-top:8px;">
+        <button id="ggCheckBtn" onclick="ggCheck()">✓ Check</button>
+        <button id="ggResetBtn" onclick="ggResetRound()">↺ Reset</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px;padding:0 16px;">
+        <span style="font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);min-width:32px;">BPM</span>
         <input type="range" class="bpm-slider" min="40" max="240" step="1" value="80" id="ggBpmSlider"
           oninput="
             const minBpm = ggHardMode ? 90 : 40;
@@ -1713,12 +1740,11 @@ table.edit-grid td.ecell:hover .nd.xhead { transform: rotate(45deg) scale(1.15);
     </div>
 
     <!-- RIGHT: Hidden answer panel -->
-    <div class="gg-panel" id="ggAnswerPanel">
+    <div class="gg-panel hidden" id="ggAnswerPanel">
       <div class="gg-panel-label" id="ggAnswerLabel">Hidden Groove</div>
       <div id="ggAnswerScore"></div>
       <div class="gg-panel-controls">
         <button id="ggSetBtn" onclick="openSetGroove()">✎ Set Groove</button>
-        <button id="ggResetBtn" onclick="ggResetRound()">↺ Reset</button>
         <button id="ggPlayAnswerBtn" onclick="ggTogglePlay('answer')" style="display:none;">▶ Play Answer</button>
       </div>
     </div>
@@ -1746,6 +1772,8 @@ table.edit-grid td.ecell:hover .nd.xhead { transform: rotate(45deg) scale(1.15);
         <option value="12">Triplets</option>
       </select>
       <button id="sgClearBtn" onclick="sgClear()">Clear</button>
+      <button id="sgReloadBtn" onclick="reloadBeatLibraries()" title="Reload beat libraries from files">⟳ Reload</button>
+      <button id="sgRandomizeBtn" onclick="ggRandomizeGroove()" style="margin-left:auto;">🎲 Randomize</button>
     </div>
     <div id="setGrooveBody">
       <table id="sgGrid" class="edit-grid"></table>
@@ -4147,6 +4175,197 @@ function mgReset() {
   if (mgMode === 'addkick') mgRenderKickGrid();
 }
 
+// ── BEAT LIBRARY DATA ─────────────────────────────────────────────────────
+// Dynamic beat libraries - loads from text files for easy updates
+let beatLibraries = {
+  easy: [],
+  med: [],
+  hard: []
+};
+
+// Function to parse beat library text files
+function parseBeatLibrary(text) {
+  const beats = [];
+  // Match lines with beat patterns (16-digit codes)
+  // Handles various formats: beat: "code" or just plain code
+  const beatPattern = /["']?([0-9]{16})["']?/g;
+  let match;
+  let found = [];
+  
+  while ((match = beatPattern.exec(text)) !== null) {
+    const code = match[1];
+    // Only add if we haven't seen it before (avoid duplicates)
+    if (!found.includes(code)) {
+      beats.push({ beat: code, enabled: true });
+      found.push(code);
+    }
+  }
+  return beats;
+}
+
+// Load beat libraries from text files
+async function loadBeatLibraries() {
+  try {
+    const files = {
+      easy: 'easy.txt',
+      med: 'med.txt',
+      hard: 'hard.txt'
+    };
+    
+    // Try multiple path strategies
+    const pathStrategies = [
+      (file) => './' + file,                    // Relative from current dir
+      (file) => file,                            // Direct name
+      (file) => window.location.origin + '/' + file,  // From domain root
+    ];
+    
+    for (const [key, filename] of Object.entries(files)) {
+      let loaded = false;
+      let loadedCount = 0;
+      
+      for (const pathFn of pathStrategies) {
+        if (loaded) break;
+        
+        try {
+          const filePath = pathFn(filename);
+          console.log(`Attempting to load from: ${filePath}`);
+          
+          const response = await fetch(filePath, { 
+            method: 'GET',
+            headers: { 'Accept': 'text/plain' }
+          });
+          
+          if (response.ok) {
+            const text = await response.text();
+            const parsedBeats = parseBeatLibrary(text);
+            
+            if (parsedBeats.length > 0) {
+              beatLibraries[key] = parsedBeats;
+              loadedCount = parsedBeats.length;
+              console.log(`✓ Loaded ${loadedCount} beats from ${filename}`);
+              loaded = true;
+            }
+          }
+        } catch (e) {
+          // Try next strategy
+        }
+      }
+      
+      if (!loaded || loadedCount === 0) {
+        console.warn(`⚠ Could not load ${filename} from files, using fallback`);
+      }
+    }
+    
+    // If nothing loaded, use fallback
+    if (beatLibraries.easy.length === 0 || beatLibraries.med.length === 0 || beatLibraries.hard.length === 0) {
+      console.log('Using fallback libraries...');
+      loadFallbackLibraries();
+    }
+    
+  } catch (e) {
+    console.error('Error in loadBeatLibraries:', e);
+    loadFallbackLibraries();
+  }
+}
+
+// Reload beat libraries - can be called manually by user
+async function reloadBeatLibraries() {
+  console.log('Reloading beat libraries...');
+  // Clear current libraries
+  beatLibraries = {
+    easy: [],
+    med: [],
+    hard: []
+  };
+  // Reload from files
+  await loadBeatLibraries();
+  // Show confirmation
+  const easy = beatLibraries.easy.length;
+  const med = beatLibraries.med.length;
+  const hard = beatLibraries.hard.length;
+  alert(`Libraries reloaded!\n\nEasy: ${easy} beats\nMed: ${med} beats\nHard: ${hard} beats`);
+}
+
+// Fallback libraries (embedded for offline/development use)
+function loadFallbackLibraries() {
+  if (beatLibraries.easy.length === 0) {
+    beatLibraries.easy = [
+      { beat: "3060406030304060", enabled: true },
+      { beat: "3030406030304060", enabled: true },
+      { beat: "3060403030304060", enabled: true },
+      { beat: "3060403060304060", enabled: true },
+      { beat: "3060403030604060", enabled: true },
+      { beat: "3030403030604060", enabled: true },
+      { beat: "3030406060304030", enabled: true },
+      { beat: "3060406060304030", enabled: true },
+      { beat: "3060406060304060", enabled: true },
+      { beat: "3030403060304060", enabled: true },
+      { beat: "3030403030304060", enabled: true },
+      { beat: "3030403030304030", enabled: true },
+      { beat: "3030403060304030", enabled: true },
+      { beat: "3060406030604030", enabled: true },
+      { beat: "3030406030604060", enabled: true },
+      { beat: "3030406060304060", enabled: true },
+      { beat: "3060406030304040", enabled: true },
+      { beat: "3060406030404060", enabled: true },
+      { beat: "3060406030404030", enabled: true },
+      { beat: "3060404030604060", enabled: true },
+      { beat: "3060403060604060", enabled: true },
+      { beat: "3030404030304040", enabled: true },
+      { beat: "3030404030304060", enabled: true }
+    ];
+  }
+  
+  if (beatLibraries.med.length === 0) {
+    // Fallback with minimal med beats - will be replaced by external file
+    beatLibraries.med = [
+      { beat: "3160406030604060", enabled: true }
+    ];
+  }
+  
+  if (beatLibraries.hard.length === 0) {
+    // Fallback with minimal hard beats - will be replaced by external file
+    beatLibraries.hard = [
+      { beat: "3060406030604061", enabled: true }
+    ];
+  }
+}
+
+// Initialize - load libraries on page load
+document.addEventListener('DOMContentLoaded', loadBeatLibraries);
+
+// Beat decoder function
+function decodeBeat(beatCode) {
+  const codeMap = {
+    '0': { kick: 0, snare: 0, hihat: 0 },
+    '1': { kick: 1, snare: 0, hihat: 0 },
+    '2': { kick: 0, snare: 1, hihat: 0 },
+    '3': { kick: 1, snare: 0, hihat: 1 },
+    '4': { kick: 0, snare: 1, hihat: 1 },
+    '5': { kick: 1, snare: 1, hihat: 0 },
+    '6': { kick: 0, snare: 0, hihat: 1 },
+    '7': { kick: 1, snare: 1, hihat: 1 }
+  };
+  
+  const result = {
+    kick: new Array(16).fill(0),
+    snare: new Array(16).fill(0),
+    hihat: new Array(16).fill(0),
+    crash: new Array(1).fill(0),
+    ride: new Array(1).fill(0)
+  };
+  
+  for (let i = 0; i < beatCode.length && i < 16; i++) {
+    const code = beatCode[i];
+    const mapping = codeMap[code] || codeMap['0'];
+    if (mapping.kick) result.kick[i] = 1;
+    if (mapping.snare) result.snare[i] = 1;
+    if (mapping.hihat) result.hihat[i] = 1;
+  }
+  
+  return result;
+}
+
 // ── GUESS THE GROOVE ──────────────────────────────────────────────────────
 const GG_INSTS = [
   { id: 'hihat', label: 'Hi-Hat', isX: true  },
@@ -4545,8 +4764,45 @@ function sgSetDivision(val) {
   sgRenderGrid();
 }
 
+
 function sgClear() {
   ggSgData = ggEmptyData(ggSgDivision);
+  sgRenderGrid();
+}
+
+function ggRandomizeGroove() {
+  // Get random beat from the library based on current difficulty
+  // Map 'medium' to 'med' library key
+  const libKey = ggDifficulty === 'medium' ? 'med' : ggDifficulty;
+  const library = beatLibraries[libKey] || beatLibraries.easy;
+  if (!library || library.length === 0) return;
+  
+  const randomBeat = library[Math.floor(Math.random() * library.length)];
+  const decodedBeat = decodeBeat(randomBeat.beat);
+  
+  // Convert 16-step decoded beat to the current grid division
+  if (ggSgDivision === 8) {
+    // For 8-step, take every other step from the 16-step beat
+    ggSgData = ggEmptyData(8);
+    GG_INSTS.forEach(inst => {
+      for (let s = 0; s < 8; s++) {
+        ggSgData[inst.id][s] = decodedBeat[inst.id][s * 2] || 0;
+      }
+    });
+  } else if (ggSgDivision === 16) {
+    // Direct 16-step mapping
+    ggSgData = JSON.parse(JSON.stringify(decodedBeat));
+  } else if (ggSgDivision === 12) {
+    // For triplets, map the first 12 steps
+    ggSgData = ggEmptyData(12);
+    GG_INSTS.forEach(inst => {
+      for (let s = 0; s < 12; s++) {
+        const beatStep = Math.floor(s * 16 / 12);
+        ggSgData[inst.id][s] = decodedBeat[inst.id][beatStep] || 0;
+      }
+    });
+  }
+  
   sgRenderGrid();
 }
 
@@ -4578,6 +4834,13 @@ function submitGroove() {
     revealBtn.disabled = false;
     revealBtn.style.opacity = '1';
     revealBtn.style.cursor = 'pointer';
+  }
+  // Re-enable check button for the new groove (on easy/medium)
+  const checkBtn = document.getElementById('ggCheckBtn');
+  if (checkBtn && ggDifficulty !== 'hard') {
+    checkBtn.disabled = false;
+    checkBtn.style.opacity = '1';
+    checkBtn.style.cursor = 'pointer';
   }
   ggRenderGuessScore();
   ggRenderAnswerScore();
@@ -4669,9 +4932,6 @@ function ggRenderGuessGrid() {
     const instObj = GG_INSTS.find(i => i.id === inst);
     const el = document.getElementById(`gg-nd-${inst}-${step}`);
     if (el) el.className = 'nd ' + getNdClass(ggGuessData[inst][dataStep], instObj ? instObj.isX : false);
-    // Re-enable check button when student edits
-    const cb = document.getElementById('ggCheckBtn');
-    if (cb && ggDifficulty !== 'hard') { cb.disabled = false; cb.style.opacity = '1'; cb.style.cursor = ''; }
     ggRenderGuessScore();
   };
 }
@@ -4891,6 +5151,14 @@ function ggReveal() {
     revealBtn.style.cursor = 'not-allowed';
   }
 
+  // Re-enable check button for next groove attempt (on easy/medium)
+  const checkBtn = document.getElementById('ggCheckBtn');
+  if (checkBtn && ggDifficulty !== 'hard') {
+    checkBtn.disabled = false;
+    checkBtn.style.opacity = '1';
+    checkBtn.style.cursor = 'pointer';
+  }
+
   // Unhide answer panel
   document.getElementById('ggAnswerPanel').classList.remove('hidden');
   document.getElementById('ggAnswerLabel').textContent = 'The Groove';
@@ -4902,7 +5170,7 @@ function ggReveal() {
 // ── GG RESET ──────────────────────────────────────────────────────────────
 function ggResetRound() {
   ggStopPlay();
-  // Reset the guess grid and streak, but keep difficulty and answer
+  // Reset the guess grid but keep difficulty and answer
   const defaultBeat = () => {
     const d = { hihat: new Array(MG_DIV).fill(0), snare: new Array(MG_DIV).fill(0), kick: new Array(MG_DIV).fill(0), crash: new Array(MG_DIV).fill(0), ride: new Array(MG_DIV).fill(0) };
     [0,2,4,6,8,10,12,14].forEach(s => { d.hihat[s] = 1; });
@@ -4911,7 +5179,6 @@ function ggResetRound() {
     return d;
   };
   ggGuessData = defaultBeat();
-  ggStreak = 0;
   ggRevealed = false;
   document.getElementById('ggAnswerPanel').classList.add('hidden');
   document.getElementById('ggAnswerLabel').textContent = 'Hidden Groove';
@@ -4919,8 +5186,9 @@ function ggResetRound() {
   document.getElementById('ggResult').textContent = '';
   document.getElementById('ggResult').className = '';
   document.querySelectorAll('.gg-cell').forEach(c => c.classList.remove('gg-correct','gg-wrong'));
-  const el = document.getElementById('ggStreakNum');
-  if (el) el.textContent = '0';
+  // Re-enable check button for next attempt
+  const cb = document.getElementById('ggCheckBtn');
+  if (cb && ggDifficulty !== 'hard') { cb.disabled = false; cb.style.opacity = '1'; cb.style.cursor = ''; }
   ggRenderGuessScore();
   ggRenderGuessGrid();
   ggRenderAnswerScore();
