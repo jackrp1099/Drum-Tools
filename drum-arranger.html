@@ -1304,8 +1304,8 @@ table.edit-grid td.ecell:hover .nd.xhead { transform: rotate(45deg) scale(1.15);
 
 /* Correct/wrong cell highlight after reveal */
 .gg-cell.gg-correct { background: rgba(40,160,80,0.18) !important; }
-.gg-cell.gg-wrong   { background: rgba(184,48,48,0.18) !important; }
-.gg-cell.gg-wrong .nd { outline: 2px solid var(--red); outline-offset: 2px; }
+.gg-cell.gg-wrong   { background: transparent !important; }
+.gg-cell.gg-wrong .nd { outline: none; }
 
 /* Result message */
 #ggResult {
@@ -1334,6 +1334,14 @@ table.edit-grid td.ecell:hover .nd.xhead { transform: rotate(45deg) scale(1.15);
   padding: 10px 20px; cursor: pointer; transition: all 0.15s;
 }
 #ggSetBtn:hover { border-color: var(--ink); color: var(--ink); }
+#ggSetRandomBtn {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: #5A3A8A; background: transparent;
+  border: 1px solid #5A3A8A; border-radius: 4px;
+  padding: 10px 20px; cursor: pointer; transition: all 0.15s;
+}
+#ggSetRandomBtn:hover { background: rgba(90,58,138,0.1); border-color: #6E4BA5; color: #6E4BA5; }
 #ggCheckBtn {
   font-family: var(--mono); font-size: 11px; font-weight: 500;
   letter-spacing: 0.14em; text-transform: uppercase;
@@ -1732,7 +1740,8 @@ table.edit-grid td.ecell:hover .nd.xhead { transform: rotate(45deg) scale(1.15);
         <span style="font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);min-width:32px;">BPM</span>
         <input type="range" class="bpm-slider" min="40" max="240" step="1" value="80" id="ggBpmSlider"
           oninput="
-            const minBpm = ggHardMode ? 90 : 40;
+            const extremeCheckbox = document.getElementById('ggExtremeCheckbox');
+            const minBpm = (ggDifficulty === 'hard' && extremeCheckbox && extremeCheckbox.checked) ? 90 : 40;
             if (+this.value < minBpm) { this.value = minBpm; }
             globalBpm=+this.value;bpm=+this.value;document.getElementById('ggBpmNum').textContent=this.value">
         <span class="bpm-num" id="ggBpmNum">80</span>
@@ -1745,6 +1754,7 @@ table.edit-grid td.ecell:hover .nd.xhead { transform: rotate(45deg) scale(1.15);
       <div id="ggAnswerScore"></div>
       <div class="gg-panel-controls">
         <button id="ggSetBtn" onclick="openSetGroove()">✎ Set Groove</button>
+        <button id="ggSetRandomBtn" onclick="ggSetRandomGroove()">🎲 Set Random</button>
         <button id="ggPlayAnswerBtn" onclick="ggTogglePlay('answer')" style="display:none;">▶ Play Answer</button>
       </div>
     </div>
@@ -1754,6 +1764,10 @@ table.edit-grid td.ecell:hover .nd.xhead { transform: rotate(45deg) scale(1.15);
   <div id="ggRevealRow">
     <button id="ggRevealBtn" onclick="ggReveal()">👁 Reveal</button>
     <button id="ggDiffBtn" onclick="ggToggleDifficulty()" style="font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;border:1px solid var(--border);border-radius:4px;padding:8px 16px;background:transparent;color:var(--ink2);cursor:pointer;transition:all 0.15s;margin-left:10px;">Easy</button>
+    <label style="display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:14px;letter-spacing:0.1em;text-transform:uppercase;color:var(--red);cursor:pointer;user-select:none;position:absolute;bottom:16px;right:16px;font-weight:600;">
+      <input type="checkbox" id="ggExtremeCheckbox" onchange="ggToggleExtremeMode()" style="width:20px;height:20px;cursor:pointer;">
+      🔥 Extreme Mode 🔥
+    </label>
   </div>
 </div>
 
@@ -4441,33 +4455,69 @@ function ggToggleDifficulty() {
 function ggApplyDifficulty() {
   const btn      = document.getElementById('ggDiffBtn');
   const checkBtn = document.getElementById('ggCheckBtn');
+  const checkBtnRow = checkBtn ? checkBtn.closest('.gg-panel-controls') : null;
   const slider   = document.getElementById('ggBpmSlider');
   const numEl    = document.getElementById('ggBpmNum');
+  const extremeCheckbox = document.getElementById('ggExtremeCheckbox');
+  const isExtremeMode = extremeCheckbox && extremeCheckbox.checked;
 
   if (ggDifficulty === 'easy') {
     if (btn) { btn.textContent = 'Easy'; btn.style.color = 'var(--ink2)'; btn.style.borderColor = 'var(--border)'; }
-    if (checkBtn) { checkBtn.style.display = ''; checkBtn.disabled = false; checkBtn.style.opacity = '1'; }
     ggGuessDivision = 8;
     if (slider) slider.min = '40';
+    // Apply Extreme Mode to Easy
+    if (isExtremeMode) {
+      if (checkBtnRow) checkBtnRow.style.display = 'none';
+      if (slider) {
+        slider.value = Math.max(90, +slider.value);
+        globalBpm = +slider.value; bpm = +slider.value;
+        if (numEl) numEl.textContent = slider.value;
+      }
+    } else {
+      if (checkBtn) { checkBtn.style.display = 'inline-block'; checkBtn.disabled = false; checkBtn.style.opacity = '1'; }
+      if (checkBtnRow) checkBtnRow.style.display = 'flex';
+    }
   } else if (ggDifficulty === 'medium') {
     if (btn) { btn.textContent = 'Medium'; btn.style.color = '#E8A045'; btn.style.borderColor = '#6A4010'; }
-    if (checkBtn) { checkBtn.style.display = ''; checkBtn.disabled = false; checkBtn.style.opacity = '1'; }
     ggGuessDivision = 16;
     if (slider) slider.min = '40';
+    // Apply Extreme Mode to Medium
+    if (isExtremeMode) {
+      if (checkBtnRow) checkBtnRow.style.display = 'none';
+      if (slider) {
+        slider.value = Math.max(90, +slider.value);
+        globalBpm = +slider.value; bpm = +slider.value;
+        if (numEl) numEl.textContent = slider.value;
+      }
+    } else {
+      if (checkBtn) { checkBtn.style.display = 'inline-block'; checkBtn.disabled = false; checkBtn.style.opacity = '1'; }
+      if (checkBtnRow) checkBtnRow.style.display = 'flex';
+    }
   } else {
     if (btn) { btn.textContent = 'Hard'; btn.style.color = 'var(--red)'; btn.style.borderColor = 'var(--red)'; }
-    if (checkBtn) checkBtn.style.display = 'none';
     ggGuessDivision = 16;
-    if (slider) {
-      slider.min = '90';
-      slider.value = '90';
-      globalBpm = 90; bpm = 90;
-      if (numEl) numEl.textContent = '90';
+    if (slider) slider.min = '40';
+    // Apply Extreme Mode to Hard
+    if (isExtremeMode) {
+      if (checkBtnRow) checkBtnRow.style.display = 'none';
+      if (slider) {
+        slider.value = Math.max(90, +slider.value);
+        globalBpm = +slider.value; bpm = +slider.value;
+        if (numEl) numEl.textContent = slider.value;
+      }
+    } else {
+      if (checkBtn) { checkBtn.style.display = 'inline-block'; checkBtn.disabled = false; checkBtn.style.opacity = '1'; }
+      if (checkBtnRow) checkBtnRow.style.display = 'flex';
     }
   }
   ggHardMode = ggDifficulty === 'hard';
   ggHsViewMode = ggDifficulty;
   ggRenderHighScores();
+}
+
+function ggToggleExtremeMode() {
+  // Re-apply difficulty with the new Extreme Mode state
+  ggApplyDifficulty();
 }
 
 // ── HIGH SCORES ────────────────────────────────────────────────────────────
@@ -4870,14 +4920,61 @@ function submitGroove() {
     revealBtn.style.opacity = '1';
     revealBtn.style.cursor = 'pointer';
   }
-  // Re-enable check button for the new groove (on easy/medium)
+  // Re-enable check button for the new groove unless Extreme Mode is enabled
   const checkBtn = document.getElementById('ggCheckBtn');
-  if (checkBtn && ggDifficulty !== 'hard') {
+  const extremeCheckbox = document.getElementById('ggExtremeCheckbox');
+  const isExtremeMode = extremeCheckbox && extremeCheckbox.checked;
+  if (checkBtn && !isExtremeMode) {
     checkBtn.disabled = false;
     checkBtn.style.opacity = '1';
     checkBtn.style.cursor = 'pointer';
   }
   ggRenderGuessScore();
+  ggRenderAnswerScore();
+}
+
+function ggSetRandomGroove() {
+  // Get random beat from the library based on current difficulty
+  // Map 'medium' to 'med' library key
+  const libKey = ggDifficulty === 'medium' ? 'med' : ggDifficulty;
+  const library = beatLibraries[libKey] || beatLibraries.easy;
+  if (!library || library.length === 0) return;
+  
+  const randomBeat = library[Math.floor(Math.random() * library.length)];
+  const decodedBeat = decodeBeat(randomBeat.beat);
+  
+  // Always use 16-step for answer data storage
+  ggAnswerData = ggEmptyData(MG_DIV);
+  GG_INSTS.forEach(inst => {
+    for (let s = 0; s < 16; s++) {
+      ggAnswerData[inst.id][s] = decodedBeat[inst.id][s] || 0;
+    }
+  });
+  
+  ggRevealed = false;
+  document.getElementById('ggAnswerPanel').classList.add('hidden');
+  document.getElementById('ggAnswerLabel').textContent = 'Hidden Groove';
+  document.getElementById('ggPlayAnswerBtn').style.display = 'none';
+  document.getElementById('ggResult').textContent = '';
+  document.getElementById('ggResult').className = '';
+  // Clear any stale highlights without touching the guess notes
+  document.querySelectorAll('.gg-cell').forEach(c => c.classList.remove('gg-correct','gg-wrong'));
+  // Re-enable reveal button for the new groove
+  const revealBtn = document.getElementById('ggRevealBtn');
+  if (revealBtn) {
+    revealBtn.disabled = false;
+    revealBtn.style.opacity = '1';
+    revealBtn.style.cursor = 'pointer';
+  }
+  // Re-enable check button for the new groove unless Extreme Mode is enabled
+  const checkBtn = document.getElementById('ggCheckBtn');
+  const extremeCheckbox = document.getElementById('ggExtremeCheckbox');
+  const isExtremeMode = extremeCheckbox && extremeCheckbox.checked;
+  if (checkBtn && !isExtremeMode) {
+    checkBtn.disabled = false;
+    checkBtn.style.opacity = '1';
+    checkBtn.style.cursor = 'pointer';
+  }
   ggRenderAnswerScore();
 }
 
@@ -5080,12 +5177,12 @@ function ggApplyHighlights(mode) {
         cell.classList.add(answerOn === guessOn ? 'gg-correct' : 'gg-wrong');
         if (answerOn !== guessOn) wrongNotes++;
       } else {
-        // Check mode — only mark placed notes
+        // Check mode — no highlighting, only text feedback
         if (guessOn) {
           if (answerOn) {
-            cell.classList.add('gg-correct'); // correctly placed
+            // correctly placed — no highlight
           } else {
-            cell.classList.add('gg-wrong');   // placed but shouldn't be
+            // placed but shouldn't be — count as wrong but don't highlight
             wrongNotes++;
           }
         } else if (answerOn) {
@@ -5185,6 +5282,7 @@ function ggCheck() {
 // ── REVEAL ────────────────────────────────────────────────────────────────
 function ggReveal() {
   if (!ggAnswerData) { alert('Set a groove first!'); return; }
+  ggStopPlay();
   ggRevealed = true;
 
   // Gray out the reveal button
@@ -5195,9 +5293,11 @@ function ggReveal() {
     revealBtn.style.cursor = 'not-allowed';
   }
 
-  // Re-enable check button for next groove attempt (on easy/medium)
+  // Re-enable check button for next groove attempt unless Extreme Mode is enabled
   const checkBtn = document.getElementById('ggCheckBtn');
-  if (checkBtn && ggDifficulty !== 'hard') {
+  const extremeCheckbox = document.getElementById('ggExtremeCheckbox');
+  const isExtremeMode = extremeCheckbox && extremeCheckbox.checked;
+  if (checkBtn && !isExtremeMode) {
     checkBtn.disabled = false;
     checkBtn.style.opacity = '1';
     checkBtn.style.cursor = 'pointer';
@@ -5230,9 +5330,11 @@ function ggResetRound() {
   document.getElementById('ggResult').textContent = '';
   document.getElementById('ggResult').className = '';
   document.querySelectorAll('.gg-cell').forEach(c => c.classList.remove('gg-correct','gg-wrong'));
-  // Re-enable check button for next attempt
+  // Re-enable check button for next attempt unless Extreme Mode is enabled
   const cb = document.getElementById('ggCheckBtn');
-  if (cb && ggDifficulty !== 'hard') { cb.disabled = false; cb.style.opacity = '1'; cb.style.cursor = ''; }
+  const extremeCheckbox = document.getElementById('ggExtremeCheckbox');
+  const isExtremeMode = extremeCheckbox && extremeCheckbox.checked;
+  if (cb && !isExtremeMode) { cb.disabled = false; cb.style.opacity = '1'; cb.style.cursor = ''; }
   ggRenderGuessScore();
   ggRenderGuessGrid();
   ggRenderAnswerScore();
