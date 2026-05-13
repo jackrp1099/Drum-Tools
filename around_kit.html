@@ -863,7 +863,18 @@ function guessRandomize() {
   // Reset round tracking
   guessHiddenPlayCount = 0;
   guessFirstPlayTime = 0;
-  guessLockedBpm = bpm; // Reset locked BPM to current BPM for next round
+  guessLockedBpm = bpm; // Initialize BPM, will be updated on each play
+  
+  console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #4580E8;');
+  console.log('%c📍 NEW ROUND STARTED%c', 'color: #4580E8; font-weight: bold; font-size: 14px;', 'color: inherit;');
+  console.log(`Hidden rhythm set. Setter's rhythm (row 1):`);
+  guessCircles1.forEach((c, i) => {
+    const states = ['whole', 'two-16ths', 'four-16ths', 'three-16ths', 'skip+two'];
+    console.log(`  Beat ${i+1}: state ${c.state} (${states[c.state] || '?'})`);
+  });
+  console.log(`BPM: ${guessLockedBpm}`);
+  console.log(`Guesser's rhythm reset. Ready for ▶ Play Hidden.`);
+  console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━%c\n', 'color: #4580E8;', 'color: inherit;');
   
   // Start the slot machine animation
   guessPhase = 'guesser';
@@ -908,32 +919,78 @@ function guessLock() {
 function calculateScore() {
   // Base score based on difficulty
   let score = 0;
+  let difficultyName = '';
+  let baseScore = 0;
+  
   if (maxState === 0) { // Easy (only state 0)
-    score = 10;
+    baseScore = 10;
+    difficultyName = 'Easy';
   } else if (maxState === 1) { // Easy-medium (states 0-1)
-    score = 10;
+    baseScore = 10;
+    difficultyName = 'Easy';
   } else if (maxState === 2) { // Medium (states 0-2)
-    score = 25;
+    baseScore = 25;
+    difficultyName = 'Medium';
   } else { // Hard (states 0-4)
-    score = 50;
+    baseScore = 50;
+    difficultyName = 'Hard';
   }
   
-  // Speed bonus: +1 point per 5 BPM above 40
-  const speedBonus = Math.floor(Math.max(0, guessLockedBpm - 40) / 5);
+  score = baseScore;
+  
+  // Speed bonus: +1 point per 5 BPM above 80 (changed from 40 to 80)
+  const speedBonus = Math.floor(Math.max(0, guessLockedBpm - 80) / 5);
+  console.log(`%cSpeed bonus calculation:`, 'color: #E8A045; font-weight: bold;');
+  console.log(`  BPM locked at: ${guessLockedBpm}`);
+  console.log(`  Formula: (${guessLockedBpm} - 80) / 5 = ${(guessLockedBpm - 80) / 5}`);
+  console.log(`  Speed bonus: +${speedBonus} pts`);
   score += speedBonus;
   
   // Single play bonus: +10 if hidden rhythm played only once
+  let singlePlayBonus = 0;
+  console.log(`%cSingle play bonus:`, 'color: #E8A045; font-weight: bold;');
+  console.log(`  Play count: ${guessHiddenPlayCount}`);
   if (guessHiddenPlayCount === 1) {
+    console.log(`  ✓ Played exactly once: +10 pts`);
+    singlePlayBonus = 10;
     score += 10;
+  } else {
+    console.log(`  ✗ Played ${guessHiddenPlayCount} times: 0 pts`);
   }
   
   // Speed completion bonus: +10 if solved within 10 seconds of first play
+  let speedCompleteBonus = 0;
+  console.log(`%cSpeed completion bonus:`, 'color: #E8A045; font-weight: bold;');
   if (guessFirstPlayTime > 0) {
     const elapsedTime = Date.now() - guessFirstPlayTime;
+    const elapsedSeconds = (elapsedTime / 1000).toFixed(2);
+    console.log(`  Time elapsed: ${elapsedSeconds}s`);
     if (elapsedTime <= 10000) {  // 10 seconds
+      console.log(`  ✓ Solved within 10 seconds: +10 pts`);
+      speedCompleteBonus = 10;
       score += 10;
+    } else {
+      console.log(`  ✗ Took ${elapsedSeconds}s (>10s threshold): 0 pts`);
     }
+  } else {
+    console.log(`  ✗ No play time recorded: 0 pts`);
   }
+  
+  console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #E8A045;');
+  console.log(`%c🎯 TOTAL ROUND SCORE: ${score} pts`, 'color: #E8A045; font-weight: bold; font-size: 13px;');
+  console.log(`%cCurrent streak: ${guessStreak}`, 'color: #45C878;');
+  console.log(`%cCumulative game score: ${guessScore + score} pts`, 'color: #E8A045; font-weight: bold;');
+  console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━%c\n', 'color: #E8A045;', 'color: inherit;');
+  
+  // Store score breakdown for display
+  window.scoreBreakdown = {
+    baseScore: baseScore,
+    difficulty: difficultyName,
+    tempoBonus: speedBonus,
+    speedBonus: speedCompleteBonus,
+    singleListenBonus: singlePlayBonus,
+    total: score
+  };
   
   return score;
 }
@@ -967,13 +1024,57 @@ function guessReveal() {
     txt.style.color = '#45C878';
     guessStreak += 1;
     
+    console.log('%c🎉 PERFECT MATCH!%c', 'color: #45C878; font-weight: bold; font-size: 14px;', 'color: inherit;');
+    console.log(`User's guess matched all 4 beats perfectly`);
+    
     // Calculate and add to score
     const roundScore = calculateScore();
     guessScore += roundScore;
     
+    console.log(`Streak: ${guessStreak} (streak +1)`);
+    
+    // Display score breakdown
+    const breakdown = window.scoreBreakdown;
+    let breakdownText = `${breakdown.difficulty} +${breakdown.baseScore}\n`;
+    breakdownText += `Tempo Bonus +${breakdown.tempoBonus}\n`;
+    breakdownText += `Speed Bonus +${breakdown.speedBonus}\n`;
+    breakdownText += `Single Listen Bonus +${breakdown.singleListenBonus}`;
+    
+    // Create or update breakdown display
+    let breakdownEl = document.getElementById('guessScoreBreakdown');
+    if (!breakdownEl) {
+      breakdownEl = document.createElement('div');
+      breakdownEl.id = 'guessScoreBreakdown';
+      breakdownEl.style.cssText = `
+        position: fixed;
+        top: 236px;
+        left: 50px;
+        font-family: 'DM Mono', monospace;
+        font-size: 14px;
+        color: #E8A045;
+        text-align: left;
+        white-space: pre;
+        line-height: 1.8;
+        z-index: 301;
+        pointer-events: none;
+        opacity: 1;
+        transition: opacity 0.8s ease-out;
+      `;
+      document.body.appendChild(breakdownEl);
+    }
+    breakdownEl.textContent = breakdownText;
+    breakdownEl.style.display = 'block';
+    breakdownEl.style.opacity = '1';
+    
     launchConfetti();
     // Hide the Play Again button for correct answers
     resultBtn.style.display = 'none';
+    
+    // Wait 3 seconds then fade out score breakdown
+    setTimeout(() => {
+      breakdownEl.style.opacity = '0';
+    }, 3000);
+    
     // After confetti animation completes (~2 seconds), generate new beat
     setTimeout(() => {
       guessRandomize();
@@ -985,6 +1086,11 @@ function guessReveal() {
     guessScore = 0; // Reset score on loss
     // Show the Play Again button for wrong answers
     resultBtn.style.display = 'inline-block';
+    
+    console.log('%c❌ INCORRECT GUESS%c', 'color: #E85045; font-weight: bold; font-size: 14px;', 'color: inherit;');
+    console.log(`Beats matched: ${hits}/4`);
+    console.log(`Streak reset: 0`);
+    console.log(`Game score reset: 0 pts`);
   }
   updateGuessHUD();
 }
@@ -1005,8 +1111,10 @@ function guessPlayHidden() {
   guessHiddenPlayCount++;
   if (guessHiddenPlayCount === 1) {
     guessFirstPlayTime = Date.now();
-    guessLockedBpm = bpm; // Lock in the BPM when rhythm is first played
   }
+  
+  // Update BPM for tempo bonus - uses the current BPM at time of reveal
+  guessLockedBpm = bpm;
   
   // Disable Play Hidden button during playback
   guessAudioPlaying = true;
