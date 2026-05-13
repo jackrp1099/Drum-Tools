@@ -102,14 +102,6 @@ canvas{display:block;position:absolute;top:0;left:0}
     <button id="focusBtn"  class="mode-btn" onclick="toggleFocus()">⊙ Focus</button>
     <button id="linearBtn" class="mode-btn" onclick="toggleLinear()">⇔ Linear</button>
     <button id="guessBtn"  class="mode-btn" onclick="toggleGuess()">? Guess</button>
-    <div class="ctrl-divider"></div>
-    <div class="ctrl-group">
-      <span class="ctrl-label">BPM</span>
-      <input type="range" id="bpmSlider" min="40" max="240" value="80"
-        style="width:90px;accent-color:var(--amber);background:transparent;border:none;outline:none;cursor:pointer;height:32px;padding:0 8px;"
-        oninput="bpm=+this.value;document.getElementById('bpmVal').textContent=this.value">
-      <span id="bpmVal" style="font-size:12px;padding:0 10px;color:var(--text);min-width:28px;text-align:right;background:var(--bg2);">80</span>
-    </div>
     <button id="playBtn" class="mode-btn" onclick="togglePlay()" style="min-width:72px;">▶ Play</button>
   </div>
 </header>
@@ -149,7 +141,7 @@ canvas{display:block;position:absolute;top:0;left:0}
   <div id="guessOverlay" style="display:none;position:absolute;inset:0;z-index:200;background:var(--bg);flex-direction:column;align-items:flex-start;justify-content:center;gap:0;padding:24px;">
 
     <!-- Stats bar (top left) -->
-    <div style="display:flex;gap:32px;margin-bottom:32px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;">
+    <div style="display:flex;gap:32px;margin-bottom:12px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;">
       <div style="display:flex;flex-direction:column;gap:4px;">
         <span style="color:var(--text3);">Streak</span>
         <span id="guessStreak" style="font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:var(--amber);">0</span>
@@ -158,14 +150,17 @@ canvas{display:block;position:absolute;top:0;left:0}
         <span style="color:var(--text3);">Best</span>
         <span id="guessBestStreak" style="font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:var(--text2);">0</span>
       </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <span style="color:var(--text3);">Score</span>
+        <span id="guessScore" style="font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:var(--amber);">0</span>
+      </div>
     </div>
 
     <!-- Centered game area -->
-    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;pointer-events:none;">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;pointer-events:none;transform:translateY(-20px);">
 
       <!-- Top row: setter -->
       <div id="guessRow1Wrap" style="position:relative;display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:auto;">
-        <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text3);" id="guessLabel1">Setter</div>
         <div style="position:relative;">
           <canvas id="guessCanvas1"></canvas>
           <!-- question mark overlay for locked state -->
@@ -185,17 +180,27 @@ canvas{display:block;position:absolute;top:0;left:0}
 
       <!-- Bottom row: guesser -->
       <div id="guessRow2Wrap" style="position:relative;display:flex;flex-direction:column;align-items:center;gap:10px;pointer-events:auto;">
-        <div style="font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text3);" id="guessLabel2">Guesser</div>
-        <canvas id="guessCanvas2"></canvas>
-        <!-- buttons shown during guesser phase -->
-        <div id="guesserBtns" style="display:none;gap:10px;align-items:center;">
-          <button onclick="guessPlayHidden()" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--amber);background:transparent;border:1px solid var(--amber-dim);border-radius:4px;padding:7px 22px;cursor:pointer;transition:all 0.15s;">▶ Play Hidden</button>
-          <button onclick="guessReveal()" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text2);background:transparent;border:1px solid var(--border);border-radius:4px;padding:7px 22px;cursor:pointer;transition:all 0.15s;">◎ Reveal</button>
+        <div id="guessBpmControl" style="visibility:hidden;flex-direction:row;align-items:center;gap:10px;padding:16px 0;flex-wrap:wrap;justify-content:center;display:flex;">
+          <span style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text3);">BPM</span>
+          <input type="range" id="bpmSlider" min="40" max="240" value="80"
+            style="width:270px;accent-color:var(--amber);background:transparent;border:none;outline:none;cursor:pointer;height:24px;padding:0 8px;"
+            oninput="bpm=+this.value;document.getElementById('bpmVal').textContent=this.value">
+          <span id="bpmVal" style="font-size:12px;color:var(--text);min-width:28px;text-align:right;">80</span>
         </div>
-        <!-- result shown after reveal -->
-        <div id="guessResult" style="display:none;flex-direction:column;align-items:center;gap:10px;">
-          <div id="guessResultText" style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;letter-spacing:0.06em;"></div>
-          <button onclick="guessReset()" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text2);background:transparent;border:1px solid var(--border);border-radius:4px;padding:7px 22px;cursor:pointer;transition:all 0.15s;">↺ Play Again</button>
+        <canvas id="guessCanvas2"></canvas>
+        <!-- buttons always shown but disabled when not in guesser phase -->
+        <div id="guesserBtns" style="display:flex;gap:10px;align-items:center;">
+          <button id="playHiddenBtn" onclick="guessPlayHidden()" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text3);background:transparent;border:1px solid var(--border);border-radius:4px;padding:7px 22px;cursor:not-allowed;transition:all 0.15s;opacity:0.4;pointer-events:none;">▶ Play Hidden</button>
+          <button id="revealBtn" onclick="guessReveal()" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text3);background:transparent;border:1px solid var(--border);border-radius:4px;padding:7px 22px;cursor:not-allowed;transition:all 0.15s;opacity:0.4;pointer-events:none;">◎ Reveal</button>
+        </div>
+        <!-- Play Again button - absolutely positioned below guesser circles, won't affect layout -->
+        <div id="guessResult" style="display:none;position:absolute;bottom:60px;left:50%;transform:translateX(-50%);width:auto;pointer-events:auto;">
+          <button id="playAgainBtn" onclick="guessReset()" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text2);background:transparent;border:1px solid var(--border);border-radius:4px;padding:7px 22px;cursor:pointer;transition:all 0.15s;">↺ Play Again</button>
+        </div>
+        
+        <!-- result text overlay - centered on screen -->
+        <div id="guessResultTextOverlay" style="display:none;position:fixed;inset:0;pointer-events:none;z-index:300;display:flex;align-items:center;justify-content:center;">
+          <div id="guessResultText" style="font-family:'Syne',sans-serif;font-size:48px;font-weight:800;letter-spacing:0.06em;text-align:center;"></div>
         </div>
       </div>
 
@@ -730,8 +735,13 @@ let guessCircles2 = [];
 let guessRadius;
 let guessStreak   = 0;
 let guessBestStreak = 0;
+let guessScore    = 0;
 let guessSlotMachineActive = false;
 let guessSlotMachineStart = 0;
+let guessHiddenPlayCount = 0;  // Track how many times hidden rhythm is played
+let guessFirstPlayTime = 0;    // Timestamp when hidden rhythm is first played
+let guessLockedBpm = 80;       // BPM locked in when rhythm is first played
+let guessAudioPlaying = false; // Flag to track if audio is currently playing
 
 const guessCanvas1 = document.getElementById('guessCanvas1');
 const guessCanvas2 = document.getElementById('guessCanvas2');
@@ -742,23 +752,31 @@ function toggleGuess() {
   isGuessMode = !isGuessMode;
   document.getElementById('guessBtn').classList.toggle('active', isGuessMode);
   document.getElementById('guessOverlay').style.display = isGuessMode ? 'flex' : 'none';
+  document.getElementById('guessBpmControl').style.visibility = isGuessMode ? 'visible' : 'hidden';
   
   // Disable/enable play button
   const playBtn = document.getElementById('playBtn');
   if (isGuessMode) {
     playBtn.style.opacity = '0.4';
     playBtn.style.pointerEvents = 'none';
+    playBtn.style.color = 'var(--text3)';
+    playBtn.style.borderColor = 'var(--border)';
     guessStreak = 0;
+    guessScore = 0;
     updateGuessHUD();
     guessReset();
+    drawGuess(); // Start the guess animation loop
   } else {
     playBtn.style.opacity = '1';
     playBtn.style.pointerEvents = 'auto';
+    playBtn.style.color = 'var(--text2)';
+    playBtn.style.borderColor = 'var(--border)';
   }
 }
 
 function updateGuessHUD() {
   document.getElementById('guessStreak').textContent = guessStreak;
+  document.getElementById('guessScore').textContent = guessScore;
   // Update best streak if current streak exceeds it
   if (guessStreak > guessBestStreak) {
     guessBestStreak = guessStreak;
@@ -766,16 +784,55 @@ function updateGuessHUD() {
   }
 }
 
+function setGuesserButtonsEnabled(enabled) {
+  const playHiddenBtn = document.getElementById('playHiddenBtn');
+  const revealBtn = document.getElementById('revealBtn');
+  
+  if (enabled) {
+    playHiddenBtn.style.color = 'var(--amber)';
+    playHiddenBtn.style.borderColor = 'var(--amber-dim)';
+    playHiddenBtn.style.opacity = '1';
+    playHiddenBtn.style.cursor = 'pointer';
+    playHiddenBtn.style.pointerEvents = 'auto';
+    
+    revealBtn.style.color = 'var(--text2)';
+    revealBtn.style.borderColor = 'var(--border)';
+    revealBtn.style.opacity = '1';
+    revealBtn.style.cursor = 'pointer';
+    revealBtn.style.pointerEvents = 'auto';
+  } else {
+    playHiddenBtn.style.color = 'var(--text3)';
+    playHiddenBtn.style.borderColor = 'var(--border)';
+    playHiddenBtn.style.opacity = '0.4';
+    playHiddenBtn.style.cursor = 'not-allowed';
+    playHiddenBtn.style.pointerEvents = 'none';
+    
+    revealBtn.style.color = 'var(--text3)';
+    revealBtn.style.borderColor = 'var(--border)';
+    revealBtn.style.opacity = '0.4';
+    revealBtn.style.cursor = 'not-allowed';
+    revealBtn.style.pointerEvents = 'none';
+  }
+}
+
 function guessReset() {
   guessPhase = 'setter';
   setupGuessCanvases();
+  // Reset round tracking
+  guessHiddenPlayCount = 0;
+  guessFirstPlayTime = 0;
+  guessLockedBpm = bpm; // Reset locked BPM to current BPM for next round
   // UI state
   document.getElementById('guessBlur1').style.display    = 'none';
   document.getElementById('guessLockBtn').style.display  = 'inline-block';
-  document.getElementById('guesserBtns').style.display   = 'none';
+  setGuesserButtonsEnabled(false); // Disable buttons during setter phase
   document.getElementById('guessResult').style.display   = 'none';
-  document.getElementById('guessLabel1').textContent     = 'Setter — set your rhythm, then lock it';
-  document.getElementById('guessLabel2').textContent     = 'Guesser';
+  document.getElementById('guessResultTextOverlay').style.display = 'none'; // Hide the overlay text
+  document.getElementById('guessBpmControl').style.visibility = 'visible'; // Show BPM slider again
+  // Disable play button for new playthrough
+  const playBtn = document.getElementById('playBtn');
+  playBtn.style.opacity = '0.4';
+  playBtn.style.pointerEvents = 'none';
   // Re-enable row1 clicks, disable row2
   guessCanvas1.style.pointerEvents = 'auto';
   guessCanvas2.style.pointerEvents = 'none';
@@ -798,12 +855,23 @@ function guessRandomize() {
     c.state = Math.floor(Math.random() * (maxState + 1));
   });
   
+  // Reset row 2 (guesser's row) to all zeros for new round
+  guessCircles2.forEach(c => {
+    c.state = 0;
+  });
+  
+  // Reset round tracking
+  guessHiddenPlayCount = 0;
+  guessFirstPlayTime = 0;
+  guessLockedBpm = bpm; // Reset locked BPM to current BPM for next round
+  
   // Start the slot machine animation
   guessPhase = 'guesser';
   document.getElementById('guessLockBtn').style.display  = 'none';
-  document.getElementById('guesserBtns').style.display   = 'none'; // hide buttons during slot machine
-  document.getElementById('guessLabel1').textContent     = 'Hidden';
-  document.getElementById('guessLabel2').textContent     = 'Guesser — match the rhythm you heard';
+  setGuesserButtonsEnabled(false); // Disable buttons during slot machine
+  document.getElementById('guessResult').style.display   = 'none';  // hide result from previous round
+  document.getElementById('guessResultTextOverlay').style.display = 'none'; // hide result text overlay
+  document.getElementById('guessBpmControl').style.visibility = 'visible'; // Show BPM slider again
   guessCanvas1.style.pointerEvents = 'none';
   guessCanvas2.style.pointerEvents = 'none'; // disable clicking during slot machine
   guessCanvas2.style.opacity = '1';
@@ -824,9 +892,7 @@ function guessLock() {
   guessPhase = 'guesser';
   document.getElementById('guessBlur1').style.display    = 'none';
   document.getElementById('guessLockBtn').style.display  = 'none';
-  document.getElementById('guesserBtns').style.display   = 'flex'; // show buttons immediately
-  document.getElementById('guessLabel1').textContent     = 'Hidden';
-  document.getElementById('guessLabel2').textContent     = 'Guesser — match the rhythm you heard';
+  setGuesserButtonsEnabled(true); // Enable buttons for guessing
   guessCanvas1.style.pointerEvents = 'none';
   guessCanvas2.style.pointerEvents = 'auto'; // enable clicking on row2
   guessCanvas2.style.opacity = '1';
@@ -839,13 +905,51 @@ function guessLock() {
   }
 }
 
+function calculateScore() {
+  // Base score based on difficulty
+  let score = 0;
+  if (maxState === 0) { // Easy (only state 0)
+    score = 10;
+  } else if (maxState === 1) { // Easy-medium (states 0-1)
+    score = 10;
+  } else if (maxState === 2) { // Medium (states 0-2)
+    score = 25;
+  } else { // Hard (states 0-4)
+    score = 50;
+  }
+  
+  // Speed bonus: +1 point per 5 BPM above 40
+  const speedBonus = Math.floor(Math.max(0, guessLockedBpm - 40) / 5);
+  score += speedBonus;
+  
+  // Single play bonus: +10 if hidden rhythm played only once
+  if (guessHiddenPlayCount === 1) {
+    score += 10;
+  }
+  
+  // Speed completion bonus: +10 if solved within 10 seconds of first play
+  if (guessFirstPlayTime > 0) {
+    const elapsedTime = Date.now() - guessFirstPlayTime;
+    if (elapsedTime <= 10000) {  // 10 seconds
+      score += 10;
+    }
+  }
+  
+  return score;
+}
+
 function guessReveal() {
   guessPhase = 'revealed';
   document.getElementById('guessBlur1').style.display  = 'none';
-  document.getElementById('guesserBtns').style.display = 'none';
+  setGuesserButtonsEnabled(false); // Disable buttons in revealed phase
   document.getElementById('guessResult').style.display = 'flex';
-  document.getElementById('guessLabel1').textContent   = 'Setter';
-  document.getElementById('guessLabel2').textContent   = 'Guesser';
+  document.getElementById('guessResultTextOverlay').style.display = 'flex'; // Show the overlay text
+  document.getElementById('guessBpmControl').style.visibility = 'hidden'; // Hide BPM slider during result
+  
+  // Re-enable play button since current playthrough is done
+  const playBtn = document.getElementById('playBtn');
+  playBtn.style.opacity = '1';
+  playBtn.style.pointerEvents = 'auto';
   
   // Re-enable clicking on both rows in revealed state
   guessCanvas1.style.pointerEvents = 'auto';
@@ -856,15 +960,31 @@ function guessReveal() {
   const hits = guessCircles1.filter((c,i) => c.state === guessCircles2[i].state).length;
   
   const txt = document.getElementById('guessResultText');
+  const resultBtn = document.querySelector('#guessResult button');
+  
   if (match) {
     txt.textContent = '✓ Perfect Match';
     txt.style.color = '#45C878';
     guessStreak += 1;
+    
+    // Calculate and add to score
+    const roundScore = calculateScore();
+    guessScore += roundScore;
+    
     launchConfetti();
+    // Hide the Play Again button for correct answers
+    resultBtn.style.display = 'none';
+    // After confetti animation completes (~2 seconds), generate new beat
+    setTimeout(() => {
+      guessRandomize();
+    }, 2000);
   } else {
     txt.textContent = `${hits} / 4 beats correct`;
     txt.style.color = hits >= 2 ? '#E8A045' : '#E85045';
     guessStreak = 0;
+    guessScore = 0; // Reset score on loss
+    // Show the Play Again button for wrong answers
+    resultBtn.style.display = 'inline-block';
   }
   updateGuessHUD();
 }
@@ -880,6 +1000,28 @@ function guessPlayHidden() {
     const pattern = BEAT_SLOTS[guessCircles1[beat].state] || [0];
     pattern.forEach(sub => playSample('snare', when + (beat*4 + sub) * dur));
   }
+  
+  // Track play count and first play time
+  guessHiddenPlayCount++;
+  if (guessHiddenPlayCount === 1) {
+    guessFirstPlayTime = Date.now();
+    guessLockedBpm = bpm; // Lock in the BPM when rhythm is first played
+  }
+  
+  // Disable Play Hidden button during playback
+  guessAudioPlaying = true;
+  const playHiddenBtn = document.getElementById('playHiddenBtn');
+  playHiddenBtn.style.opacity = '0.4';
+  playHiddenBtn.style.pointerEvents = 'none';
+  
+  // Calculate playback duration and re-enable button after
+  // 4 beats × 4 subdivisions = 16 slots total
+  const playbackDuration = 16 * dur * 1000; // convert to milliseconds
+  setTimeout(() => {
+    guessAudioPlaying = false;
+    playHiddenBtn.style.opacity = '1';
+    playHiddenBtn.style.pointerEvents = 'auto';
+  }, playbackDuration);
 }
 
 // ── GUESS CANVAS SETUP ────────────────────────────────────────────────────
@@ -906,10 +1048,11 @@ function setupGuessCanvases() {
   const makeRow = () => [1,2,3,4].map(i => ({ x: spacing * i, y, state: 0 }));
 
   if (guessCircles1.length === 4) {
-    guessCircles1.forEach((c,i) => { c.x = spacing*(i+1); c.y = y; });
+    guessCircles1.forEach((c,i) => { c.x = spacing*(i+1); c.y = y + 10; }); // Move top circles down 10px
     guessCircles2.forEach((c,i) => { c.x = spacing*(i+1); c.y = y; });
   } else {
     guessCircles1 = makeRow();
+    guessCircles1.forEach(c => c.y += 10); // Move top circles down 10px
     guessCircles2 = makeRow();
   }
 }
@@ -1009,14 +1152,6 @@ function drawGuessSymbol(gctx, c, t, rowCircles) {
     const xs=[-1.5,0.5,1.5].map(i=>x+i*sp); xs.forEach(nx=>{nh(nx,noteY,nr);st(sx(nx),noteY,nr);}); bm(sx(xs[0]),sx(xs[2]),beam1Y); bm(sx(xs[1]),sx(xs[2]),beam2Y);
   }
 
-  // Beat label
-  const beatNum = rowCircles.indexOf(c) + 1;
-  const subLabels = ['', ' +', ' e + a', ' e +  ', '   + a'];
-  const label = String(beatNum) + subLabels[c.state];
-  gctx.font = `${r * 0.10}px 'DM Mono', monospace`;
-  gctx.fillStyle = 'rgba(255,255,255,1)';
-  gctx.textAlign = 'center';
-  gctx.fillText(label, x, y + r + r*0.20);
   gctx.restore();
 }
 
@@ -1037,7 +1172,7 @@ function drawGuess() {
       // Slot machine done, show question marks and enable buttons
       guessSlotMachineActive = false;
       document.getElementById('guessBlur1').style.display = 'none';
-      document.getElementById('guesserBtns').style.display = 'flex';
+      setGuesserButtonsEnabled(true); // Enable buttons after slot machine
       guessCanvas2.style.pointerEvents = 'auto';
     }
   }
